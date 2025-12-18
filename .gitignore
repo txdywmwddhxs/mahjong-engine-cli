@@ -11,6 +11,7 @@ src/bug/
 # build artifacts
 /bin/
 *.exe
+/dist/
 
 # runtime data
 /log/

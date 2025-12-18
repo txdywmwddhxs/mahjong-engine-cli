@@ -34,7 +34,7 @@ func ChangeToCurrentVersion() {
 		defer func(f *os.File) {
 			err := f.Close()
 			if err != nil {
-				fmt.Println(f)
+				// best effort
 			}
 		}(f)
 
@@ -87,7 +87,12 @@ func UpdateConfigFile() {
 	if err != nil {
 		panic(err)
 	}
-	defer file.Close()
+	defer func(file *os.File) {
+		err := file.Close()
+		if err != nil {
+			panic(err)
+		}
+	}(file)
 
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")

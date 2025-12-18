@@ -35,7 +35,11 @@ var (
 func init() {
 	initRuntimePaths()
 
-	Version = loadVersion()
+	// Allow build-time injection (e.g. via -ldflags "-X .../utils.Version=...").
+	// If not injected, fall back to reading from the repository metadata.
+	if strings.TrimSpace(Version) == "" {
+		Version = loadVersion()
+	}
 	Config = loadConfig()
 
 	// Defaults for first run / missing config.json.
@@ -60,17 +64,15 @@ func loadConfig() ConfigType {
 	defer func(f *os.File) {
 		err := f.Close()
 		if err != nil {
-			fmt.Println(err)
+			// best effort
 		}
 	}(f)
 	d, err := os.ReadFile(ConfigFilePath)
 	if err != nil {
-		fmt.Println(err)
 		return dc
 	}
 	err = json.Unmarshal(d, &c)
 	if err != nil {
-		fmt.Println(err)
 		return dc
 	}
 	return c
@@ -109,6 +111,8 @@ func UpdateConfig(result r.Result, score int) {
 		Config.LoseScore += -score
 		losePM := fmt.Sprintf("%.2f", float64(Config.LoseScore)/float64(Config.Total-Config.Win-Config.Equal))
 		Config.LoseScorePM, _ = strconv.ParseFloat(losePM, 64)
+	default:
+		panic("Invalid result value")
 	}
 	Config.Rate = strconv.FormatFloat(float64(Config.Win)/float64(Config.Total)*100,
 		'G', 4, 32) + "%"
