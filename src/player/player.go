@@ -2,17 +2,18 @@ package player
 
 import (
 	"bufio"
-	c "card"
-	log "clog"
 	"fmt"
-	l "language"
 	"os"
-	"result"
-	"score"
 	"strconv"
 	"strings"
 	"time"
-	"utils"
+
+	c "github.com/txdywmwddhxs/mahjong-engine-cli/src/card"
+	log "github.com/txdywmwddhxs/mahjong-engine-cli/src/clog"
+	l "github.com/txdywmwddhxs/mahjong-engine-cli/src/language"
+	"github.com/txdywmwddhxs/mahjong-engine-cli/src/result"
+	"github.com/txdywmwddhxs/mahjong-engine-cli/src/score"
+	"github.com/txdywmwddhxs/mahjong-engine-cli/src/utils"
 )
 
 var scanner = bufio.NewScanner(os.Stdin)

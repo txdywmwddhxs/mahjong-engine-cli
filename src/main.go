@@ -2,16 +2,17 @@ package main
 
 import (
 	"bufio"
-	log "clog"
+	log "github.com/txdywmwddhxs/mahjong-engine-cli/src/clog"
 	"encoding/json"
 	"fmt"
-	l "language"
+	l "github.com/txdywmwddhxs/mahjong-engine-cli/src/language"
 	"os"
-	"player"
 	"runtime/debug"
-	"single"
 	"strings"
-	"utils"
+
+	"github.com/txdywmwddhxs/mahjong-engine-cli/src/player"
+	"github.com/txdywmwddhxs/mahjong-engine-cli/src/single"
+	"github.com/txdywmwddhxs/mahjong-engine-cli/src/utils"
 )
 
 var (

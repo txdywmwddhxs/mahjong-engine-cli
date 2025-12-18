@@ -3,11 +3,11 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
-	r "result"
 	"strconv"
 	"strings"
+
+	r "github.com/txdywmwddhxs/mahjong-engine-cli/src/result"
 )
 
 type Lang string
@@ -28,16 +28,33 @@ type ConfigType struct {
 }
 
 var (
-	Config  = loadConfig()
-	Version = loadVersion()
+	Config  ConfigType
+	Version string
 )
+
+func init() {
+	initRuntimePaths()
+
+	Version = loadVersion()
+	Config = loadConfig()
+
+	// Defaults for first run / missing config.json.
+	if Config.Lang == "" {
+		Config.Lang = Chinese
+	}
+	if Config.Version == "" {
+		Config.Version = Version
+	}
+
+	// Ensure config file exists on disk.
+	UpdateConfigFile()
+}
 
 func loadConfig() ConfigType {
 	dc := ConfigType{}
 	var c ConfigType
-	f, err := os.Open(configFilePath)
+	f, err := os.Open(ConfigFilePath)
 	if err != nil {
-		fmt.Println(err)
 		return dc
 	}
 	defer func(f *os.File) {
@@ -46,7 +63,7 @@ func loadConfig() ConfigType {
 			fmt.Println(err)
 		}
 	}(f)
-	d, err := ioutil.ReadAll(f)
+	d, err := os.ReadFile(ConfigFilePath)
 	if err != nil {
 		fmt.Println(err)
 		return dc

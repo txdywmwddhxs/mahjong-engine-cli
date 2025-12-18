@@ -3,7 +3,8 @@ package score
 import (
 	"fmt"
 	"math"
-	"utils"
+
+	"github.com/txdywmwddhxs/mahjong-engine-cli/src/utils"
 )
 
 const (

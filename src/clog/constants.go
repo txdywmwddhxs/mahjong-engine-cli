@@ -1,8 +1,8 @@
 package clog
 
 import (
-	l "language"
-	"score"
+	l "github.com/txdywmwddhxs/mahjong-engine-cli/src/language"
+	"github.com/txdywmwddhxs/mahjong-engine-cli/src/score"
 )
 
 const (

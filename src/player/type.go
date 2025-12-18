@@ -1,12 +1,13 @@
 package player
 
 import (
-	c "card"
-	log "clog"
-	r "result"
-	s "score"
 	"time"
-	"utils"
+
+	c "github.com/txdywmwddhxs/mahjong-engine-cli/src/card"
+	log "github.com/txdywmwddhxs/mahjong-engine-cli/src/clog"
+	r "github.com/txdywmwddhxs/mahjong-engine-cli/src/result"
+	s "github.com/txdywmwddhxs/mahjong-engine-cli/src/score"
+	"github.com/txdywmwddhxs/mahjong-engine-cli/src/utils"
 )
 
 type Player struct {

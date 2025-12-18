@@ -2,7 +2,7 @@ package language
 
 import (
 	"fmt"
-	"utils"
+	"github.com/txdywmwddhxs/mahjong-engine-cli/src/utils"
 )
 
 var IsChinese = utils.Config.Lang == utils.Chinese

@@ -1,18 +1,14 @@
 package utils
 
 import (
-	"card"
 	"time"
+
+	"github.com/txdywmwddhxs/mahjong-engine-cli/src/card"
 )
 
 const (
-	configFilePath      = `..\config\config.json`
-	ChangeLogPath       = `..\config\ChangeLog`
-	LogPath             = `..\log\play.log`
-	HistoryLogPath      = `..\log\history_log\%s.log`
-	PIDPath             = `..\pid\play.pid`
-	Chinese        Lang = "Chinese"
-	English        Lang = "English"
+	Chinese Lang = "Chinese"
+	English Lang = "English"
 )
 
 const (

@@ -1,13 +1,14 @@
 package clog
 
 import (
-	"card"
 	"fmt"
-	l "language"
 	"os"
-	"score"
 	"strings"
-	"utils"
+
+	"github.com/txdywmwddhxs/mahjong-engine-cli/src/card"
+	l "github.com/txdywmwddhxs/mahjong-engine-cli/src/language"
+	"github.com/txdywmwddhxs/mahjong-engine-cli/src/score"
+	"github.com/txdywmwddhxs/mahjong-engine-cli/src/utils"
 )
 
 type Log struct {

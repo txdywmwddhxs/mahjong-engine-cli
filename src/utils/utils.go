@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -15,12 +16,17 @@ var rr = rand.New(ss)
 
 func ChangeToCurrentVersion() {
 	if isCurrentVersion, version := isCurrentVersionLog(); !isCurrentVersion {
-		newPath := fmt.Sprintf(HistoryLogPath, version)
-		err := os.Rename(LogPath, newPath)
-		if err != nil {
-			panic(err)
+		// Archive current log (best effort) before writing a new header.
+		if _, err := os.Stat(LogPath); err == nil {
+			archiveName := strings.TrimSpace(version)
+			if archiveName == "" {
+				archiveName = "unknown"
+			}
+			newPath := filepath.Join(HistoryLogDir, fmt.Sprintf("%s.log", archiveName))
+			_ = os.Rename(LogPath, newPath)
 		}
-		f, err := os.OpenFile(LogPath, os.O_WRONLY|os.O_CREATE, 0666)
+
+		f, err := os.OpenFile(LogPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0666)
 		if err != nil {
 			panic(err)
 		}
@@ -76,19 +82,8 @@ func ChangeQuickMode() {
 	UpdateConfigFile()
 }
 
-//func UpdateConfigFile() {
-//	output, err := json.MarshalIndent(&Config, "", "  ")
-//	if err != nil {
-//		panic(err)
-//	}
-//	err = ioutil.WriteFile(configFilePath, output, 0666)
-//	if err != nil {
-//		panic(err)
-//	}
-//}
-
 func UpdateConfigFile() {
-	file, err := os.Create(configFilePath)
+	file, err := os.Create(ConfigFilePath)
 	if err != nil {
 		panic(err)
 	}

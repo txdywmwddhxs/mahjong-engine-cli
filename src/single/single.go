@@ -2,7 +2,8 @@ package single
 
 import (
 	"os"
-	"utils"
+
+	"github.com/txdywmwddhxs/mahjong-engine-cli/src/utils"
 )
 
 type Script struct {

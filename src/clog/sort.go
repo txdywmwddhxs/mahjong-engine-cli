@@ -1,6 +1,6 @@
 package clog
 
-import "score"
+import "github.com/txdywmwddhxs/mahjong-engine-cli/src/score"
 
 type itemScore struct {
 	Item  score.Item
