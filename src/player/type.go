@@ -1,0 +1,56 @@
+package player
+
+import (
+	c "card"
+	log "clog"
+	r "result"
+	s "score"
+	"time"
+	"utils"
+)
+
+type Player struct {
+	CardsPool      *c.Cards
+	PlayerCards    *c.Cards
+	RobotCards     *c.Cards
+	FixedCards     *c.Cards
+	GroupFourCount int
+	result         r.Result
+	counter        int
+	ScoreItem      *s.Items
+	lang           utils.Lang
+	condition      int
+	isWaiting      bool
+	isClear        bool
+	limit          int
+	logger         *log.Log
+	sleepTime      time.Duration
+}
+
+func NewPlayer(logger *log.Log, lang utils.Lang) (p *Player) {
+	var st time.Duration
+	if utils.Config.QuickMode {
+		st = 0
+	} else {
+		st = utils.SleepTime
+	}
+	p = &Player{
+		CardsPool:      &c.Cards{},
+		PlayerCards:    &c.Cards{},
+		RobotCards:     &c.Cards{},
+		FixedCards:     &c.Cards{},
+		GroupFourCount: 0,
+		result:         r.Default,
+		counter:        0,
+		ScoreItem:      &s.Items{},
+		lang:           lang,
+		condition:      0,
+		isWaiting:      false,
+		isClear:        true,
+		limit:          0,
+		logger:         logger,
+		sleepTime:      st,
+	}
+	p.init()
+	return p
+}

@@ -1,0 +1,25 @@
+*.log
+config/config.json
+*.bak
+*/__pycache__/
+*.pid
+*/.idea/
+src/bug/
+
+# build artifacts
+/bin/
+*.exe
+
+# runtime data
+/log/
+/pid/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Go build/test outputs
+*.test
+*.out
