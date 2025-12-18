@@ -12,7 +12,7 @@ var (
 	// ConfigFilePath is the absolute path to config/config.json.
 	ConfigFilePath string
 
-	// ChangeLogPath is the absolute path to config/ChangeLog.
+	// ChangeLogPath is the absolute path to config/CHANGELOG.txt.
 	ChangeLogPath string
 
 	// LogPath is the absolute path to log/play.log.
@@ -26,14 +26,13 @@ var (
 )
 
 func initRuntimePaths() {
-	root := findProjectRoot()
-	RootPath = root
+	RootPath = findProjectRoot()
 
-	ConfigFilePath = filepath.Join(root, "config", "config.json")
-	ChangeLogPath = filepath.Join(root, "config", "ChangeLog")
-	LogPath = filepath.Join(root, "log", "play.log")
-	HistoryLogDir = filepath.Join(root, "log", "history_log")
-	PIDPath = filepath.Join(root, "pid", "play.pid")
+	ConfigFilePath = filepath.Join(RootPath, "config", "config.json")
+	ChangeLogPath = filepath.Join(RootPath, "config", "CHANGELOG.txt")
+	LogPath = filepath.Join(RootPath, "log", "play.log")
+	HistoryLogDir = filepath.Join(RootPath, "log", "history_log")
+	PIDPath = filepath.Join(RootPath, "pid", "play.pid")
 
 	// Ensure required directories exist.
 	_ = os.MkdirAll(filepath.Dir(ConfigFilePath), 0o755)
@@ -55,8 +54,8 @@ func findProjectRoot() string {
 	for _, start := range starts {
 		dir := start
 		for {
-			// Prefer ChangeLog marker if present.
-			if fileExists(filepath.Join(dir, "config", "ChangeLog")) {
+			// Prefer CHANGELOG.txt marker if present.
+			if fileExists(filepath.Join(dir, "config", "CHANGELOG.txt")) {
 				return dir
 			}
 			// Fallback marker for module root.
