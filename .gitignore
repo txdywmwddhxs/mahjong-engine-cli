@@ -5,6 +5,8 @@ config/config.json
 *.pid
 */.idea/
 src/bug/
+!src/bug/
+!src/bug/*.md
 
 # build artifacts
 /bin/
