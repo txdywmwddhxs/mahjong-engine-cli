@@ -6,7 +6,7 @@ import (
 	"strings"
 
 	"github.com/txdywmwddhxs/mahjong-engine-cli/src/card"
-	l "github.com/txdywmwddhxs/mahjong-engine-cli/src/language"
+	"github.com/txdywmwddhxs/mahjong-engine-cli/src/language"
 	"github.com/txdywmwddhxs/mahjong-engine-cli/src/score"
 )
 
@@ -37,23 +37,7 @@ var sortBase = []score.Item{
 	score.OwnDraw,
 }
 
-var scoreTrans = map[score.Item]func() string{
-	score.Waiting:        l.Waiting,
-	score.ExposedKong:    l.ExposedKong,
-	score.ConcealedKong:  l.ConcealedKong,
-	score.Win:            l.Win,
-	score.OwnDraw:        l.OwnDraw,
-	score.Lose:           l.Lose,
-	score.Single:         l.Single,
-	score.MissTwoKind:    l.MissTwoKind,
-	score.MissOneKind:    l.MissOneKind,
-	score.Counter:        l.Counter,
-	score.SevenPairs:     l.SevenPairs,
-	score.ThirteenOne:    l.ThirteenOne,
-	score.ContinuousLine: l.ContinuousLine,
-}
-
-func RenderScoreDetail(detail map[score.Item]int) string {
+func RenderScoreDetail(t language.Translator, detail map[score.Item]int) string {
 	if len(detail) == 0 {
 		return ""
 	}
@@ -72,11 +56,7 @@ func RenderScoreDetail(detail map[score.Item]int) string {
 			continue
 		}
 		seen[item] = true
-		nameFn, ok := scoreTrans[item]
-		name := string(item)
-		if ok && nameFn != nil {
-			name = nameFn()
-		}
+		name := t.ScoreItemName(item)
 		parts = append(parts, fmt.Sprintf("%s: %d", name, v))
 	}
 
@@ -90,11 +70,7 @@ func RenderScoreDetail(detail map[score.Item]int) string {
 	}
 	sort.Slice(extra, func(i, j int) bool { return string(extra[i]) < string(extra[j]) })
 	for _, item := range extra {
-		nameFn, ok := scoreTrans[item]
-		name := string(item)
-		if ok && nameFn != nil {
-			name = nameFn()
-		}
+		name := t.ScoreItemName(item)
 		parts = append(parts, fmt.Sprintf("%s: %d", name, detail[item]))
 	}
 

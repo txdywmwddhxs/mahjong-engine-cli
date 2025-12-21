@@ -4,6 +4,7 @@ import (
 	"time"
 
 	c "github.com/txdywmwddhxs/mahjong-engine-cli/src/card"
+	"github.com/txdywmwddhxs/mahjong-engine-cli/src/language"
 	"github.com/txdywmwddhxs/mahjong-engine-cli/src/logging"
 	r "github.com/txdywmwddhxs/mahjong-engine-cli/src/result"
 	s "github.com/txdywmwddhxs/mahjong-engine-cli/src/score"
@@ -27,10 +28,11 @@ type Player struct {
 	limit          int
 	logger         logging.Logger
 	ui             ui.UI
+	t              language.Translator
 	sleepTime      time.Duration
 }
 
-func NewPlayer(logger logging.Logger, ui ui.UI, lang utils.Lang) (p *Player) {
+func NewPlayer(logger logging.Logger, ui ui.UI, t language.Translator, lang utils.Lang) (p *Player) {
 	var st time.Duration
 	if utils.Config.QuickMode {
 		st = 0
@@ -53,6 +55,7 @@ func NewPlayer(logger logging.Logger, ui ui.UI, lang utils.Lang) (p *Player) {
 		limit:          0,
 		logger:         logger,
 		ui:             ui,
+		t:              t,
 		sleepTime:      st,
 	}
 	p.init()

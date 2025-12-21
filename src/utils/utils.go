@@ -7,12 +7,36 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
 
 var ss = rand.NewSource(time.Now().UnixNano())
 var rr = rand.New(ss)
+var currentSeed int64
+
+func init() {
+	// Deterministic runs for tests / debugging.
+	// If MAHJONG_SEED is set to an int64 value, it overrides the default time seed.
+	if seedStr := strings.TrimSpace(os.Getenv("MAHJONG_SEED")); seedStr != "" {
+		if seed, err := strconv.ParseInt(seedStr, 10, 64); err == nil {
+			currentSeed = seed
+			ss = rand.NewSource(seed)
+			rr = rand.New(ss)
+		} else {
+			currentSeed = time.Now().UnixNano()
+		}
+	} else {
+		currentSeed = time.Now().UnixNano()
+	}
+}
+
+// GetCurrentSeed returns the seed value currently used for random number generation.
+// This is either from MAHJONG_SEED env var or the time-based seed generated at init.
+func GetCurrentSeed() int64 {
+	return currentSeed
+}
 
 func ChangeToCurrentVersion() {
 	if isCurrentVersion, version := isCurrentVersionLog(); !isCurrentVersion {

@@ -42,6 +42,11 @@ func initRuntimePaths() {
 }
 
 func findProjectRoot() string {
+	// Allow tests / packaging to override runtime root explicitly.
+	if root := os.Getenv("MAHJONG_ROOT"); root != "" {
+		return root
+	}
+
 	var starts []string
 
 	if wd, err := os.Getwd(); err == nil && wd != "" {

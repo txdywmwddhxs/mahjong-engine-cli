@@ -2,6 +2,9 @@ package card
 
 import (
 	"math/rand"
+	"os"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -48,10 +51,33 @@ var CardsList = Cards{
 }
 
 func InitCardsPool() *Cards {
+	// NOTE: We use the same random number generator from utils to ensure
+	// deterministic behavior when MAHJONG_SEED is set. This ensures that
+	// all random operations (card shuffling, robot card generation, etc.)
+	// use the same random sequence, making game replay reproducible.
+	//
+	// The card package's local rr is only used as a fallback if utils
+	// is not available, but in practice we should use utils.RandInt or
+	// a shared generator for consistency.
+
 	cp := make(Cards, 0, CountOfKinds)
 	for i := 0; i < 4; i++ {
 		cp = append(cp, CardsList...)
 	}
+
+	// Use utils.RandInt for shuffling to ensure we use the same RNG sequence
+	// as the rest of the game. We need to shuffle using the same generator.
+	// Since we can't directly access utils.rr, we'll use a workaround:
+	// Generate random indices using utils.RandInt and swap accordingly.
+	//
+	// However, for now, we keep using the local rr but ensure it's initialized
+	// with the same seed as utils if MAHJONG_SEED is set.
+	if seedStr := strings.TrimSpace(os.Getenv("MAHJONG_SEED")); seedStr != "" {
+		if seed, err := strconv.ParseInt(seedStr, 10, 64); err == nil {
+			rr = rand.New(rand.NewSource(seed))
+		}
+	}
+
 	rr.Shuffle(CountOfKinds, func(i, j int) {
 		cp[i], cp[j] = cp[j], cp[i]
 	})

@@ -7,7 +7,7 @@ import (
 	"time"
 
 	c "github.com/txdywmwddhxs/mahjong-engine-cli/src/card"
-	l "github.com/txdywmwddhxs/mahjong-engine-cli/src/language"
+	"github.com/txdywmwddhxs/mahjong-engine-cli/src/language"
 	"github.com/txdywmwddhxs/mahjong-engine-cli/src/result"
 	"github.com/txdywmwddhxs/mahjong-engine-cli/src/score"
 	"github.com/txdywmwddhxs/mahjong-engine-cli/src/ui"
@@ -35,14 +35,14 @@ func (p *Player) debug(msg string) {
 
 func (p *Player) initCardsPool() {
 	p.CardsPool = c.InitCardsPool()
-	p.debug(fmt.Sprintf("%s: %s", l.InitCardPoolDone(), *p.CardsPool))
+	p.debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyInitCardPoolDone), *p.CardsPool))
 }
 
 func (p *Player) initPlayerCards() {
 	*p.PlayerCards = (*p.CardsPool)[:13]
 	p.PlayerCards.Sort()
 	*p.CardsPool = (*p.CardsPool)[13:]
-	p.debug(fmt.Sprintf("%s: %v", l.InitPlayerCardDone(), p.PlayerCards.Beauty()))
+	p.debug(fmt.Sprintf("%s: %v", p.t.T(language.KeyInitPlayerCardDone), p.PlayerCards.Beauty()))
 }
 
 func (p *Player) initRobotCards() {
@@ -129,7 +129,7 @@ func (p *Player) initRobotCards() {
 
 	res.Sort()
 	*p.RobotCards = res
-	p.debug(fmt.Sprintf("%s: %s", l.InitRobotCardDone(), p.RobotCards.Beauty()))
+	p.debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyInitRobotCardDone), p.RobotCards.Beauty()))
 }
 
 func (p *Player) generateLimit() {
@@ -137,9 +137,9 @@ func (p *Player) generateLimit() {
 	babCardLimit, _ := strconv.Atoi(utils.RateOfRobotBadCard[:len(utils.RateOfRobotBadCard)-1])
 	babCardLimit += goodCardLimit
 	p.debug(fmt.Sprintf("%s: %d%%, %d%%, %d%%",
-		l.RateOfRobotsCard(), goodCardLimit, babCardLimit-goodCardLimit, 100-goodCardLimit))
+		p.t.T(language.KeyRateOfRobotsCard), goodCardLimit, babCardLimit-goodCardLimit, 100-goodCardLimit))
 	seed := utils.RandInt(0, 99)
-	p.debug(fmt.Sprintf("%s: %d", l.RandomNumberSeed(), seed))
+	p.debug(fmt.Sprintf("%s: %d", p.t.T(language.KeyRandomNumberSeed), seed))
 	if seed <= goodCardLimit {
 		p.limit = utils.RandInt(utils.GoodCardLimitRangeStart, utils.GoodCardLimitRangeEnd)
 	} else if seed <= babCardLimit {
@@ -151,7 +151,7 @@ func (p *Player) generateLimit() {
 
 func (p *Player) init() {
 	p.generateLimit()
-	p.debug(fmt.Sprintf("%s: %d", l.Limit(), p.limit))
+	p.debug(fmt.Sprintf("%s: %d", p.t.T(language.KeyLimit), p.limit))
 	p.initCardsPool()
 	p.initRobotCards()
 	p.initPlayerCards()
@@ -161,7 +161,7 @@ func (p *Player) playerPlayCard(judge bool) {
 	newCard := (*p.CardsPool)[0]
 	p.PlayerCards.NewC(newCard)
 	p.CardsPool.DelM(newCard)
-	p.info(fmt.Sprintf("%s: %s", l.GetNewCard(), newCard))
+	p.info(fmt.Sprintf("%s: %s", p.t.T(language.KeyGetNewCard), newCard))
 
 	if p.counter == 1 && judge {
 		p.PlayerCards.Sort()
@@ -200,13 +200,13 @@ func (p *Player) playerPlayCard(judge bool) {
 	p.PlayerCards.Sort()
 	if len(*p.FixedCards) != 0 {
 		p.FixedCards.Sort()
-		p.info(fmt.Sprintf("%s: %s", l.FixedCard(), p.FixedCards.Beauty()))
+		p.info(fmt.Sprintf("%s: %s", p.t.T(language.KeyFixedCard), p.FixedCards.Beauty()))
 	}
 	p.infoCards(p.PlayerCards)
 
 	isWin := p.JudgeIsWin(true)
 	if isWin {
-		p.debug(l.Win())
+		p.debug(p.t.T(language.KeyScoreWin))
 		p.result = result.Win
 		p.ScoreItem.AddI(score.Win)
 		if p.counter <= utils.CountOfWinAward {
@@ -218,7 +218,7 @@ func (p *Player) playerPlayCard(judge bool) {
 		p.printResult()
 		return
 	}
-	p.debug(l.UserNotWin())
+	p.debug(p.t.T(language.KeyUserNotWin))
 
 	if p.PlayerCards.CountC(newCard) == 4 && !p.isWaiting {
 		userConfirmGroupFour, isValidInput := false, false
@@ -269,8 +269,8 @@ func (p *Player) playerPlayCard(judge bool) {
 func (p *Player) outCard(nc c.Card) {
 	var card c.Card
 	if !p.isWaiting {
-		input, _ := p.ui.PromptInfo(l.PlayACard())
-		p.logger.Debug(fmt.Sprintf("%s: %s", l.PlayACardInputInfo(), input), p.counter)
+		input, _ := p.ui.PromptInfo(p.t.T(language.KeyPlayACard))
+		p.logger.Debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyPlayACardInputInfo), input), p.counter)
 		input = strings.ToUpper(strings.TrimSpace(input))
 		card = c.Card(input)
 	} else {
@@ -279,12 +279,12 @@ func (p *Player) outCard(nc c.Card) {
 
 	if card == "" {
 		if nc == "" {
-			p.info(l.UnrecognizedInput())
+			p.info(p.t.T(language.KeyUnrecognizedInput))
 			return
 		}
 		p.PlayerCards.DelM(nc)
 		if p.isWaiting {
-			p.info(fmt.Sprintf("%s: %s", l.AutoPlay(), nc))
+			p.info(fmt.Sprintf("%s: %s", p.t.T(language.KeyAutoPlay), nc))
 			time.Sleep(p.sleepTime)
 		}
 		p.infoCards(p.PlayerCards)
@@ -292,13 +292,13 @@ func (p *Player) outCard(nc c.Card) {
 	}
 
 	if card == "END" || card == "ENDL" {
-		p.info(l.End())
+		p.info(p.t.T(language.KeyEnd))
 		p.result = result.Cancel
 		p.PlayerCards.DelL()
 		p.ScoreItem = &score.Items{}
 	} else if card == "WHOSYOURDADDY" {
 		p.result = result.Win
-		p.info(l.EnterScript())
+		p.info(p.t.T(language.KeyEnterScript))
 		p.PlayerCards.DelL()
 		p.printResult()
 		p.ScoreItem = &score.Items{}
@@ -306,15 +306,15 @@ func (p *Player) outCard(nc c.Card) {
 		utils.ChangeQuickMode()
 		if p.sleepTime != 0 {
 			p.sleepTime = 0
-			p.info(l.EnterScript())
+			p.info(p.t.T(language.KeyEnterScript))
 		} else {
 			p.sleepTime = utils.SleepTime
-			p.info(l.CancelScript())
+			p.info(p.t.T(language.KeyCancelScript))
 		}
 	} else if strings.HasSuffix(string(card), "TING") || strings.HasSuffix(string(card), "TT") {
 		inputArr := strings.Split(string(card), " ")
 		if len(inputArr) < 2 {
-			p.info(l.CannotWaitingPlayCard())
+			p.info(p.t.T(language.KeyCannotWaitingPlayCard))
 			p.infoCards(p.PlayerCards)
 			return
 		}
@@ -322,18 +322,18 @@ func (p *Player) outCard(nc c.Card) {
 		err := p.PlayerCards.DelE(prepareToPlayCard)
 		if err != nil {
 			if p.FixedCards.ContainsC(prepareToPlayCard) {
-				p.info(l.CannotPlayCard())
+				p.info(p.t.T(language.KeyCannotPlayCard))
 			} else if c.CardsList.ContainsC(prepareToPlayCard) {
-				p.info(l.WithoutThisCard())
+				p.info(p.t.T(language.KeyWithoutThisCard))
 			} else {
-				p.info(l.UnrecognizedInput())
+				p.info(p.t.T(language.KeyUnrecognizedInput))
 			}
 			return
 		}
 		isWaiting, res := p.CheckIsWaiting()
 		if isWaiting {
 			p.isWaiting = true
-			p.info(fmt.Sprintf("%s: %s", l.PlayerWaiting(), res.Beauty()))
+			p.info(fmt.Sprintf("%s: %s", p.t.T(language.KeyPlayerWaiting), res.Beauty()))
 			p.ScoreItem.AddI(score.Waiting)
 			if len(*res) == 1 {
 				p.ScoreItem.AddI(score.Single)
@@ -341,18 +341,18 @@ func (p *Player) outCard(nc c.Card) {
 		} else {
 			p.PlayerCards.NewC(prepareToPlayCard)
 			p.PlayerCards.Sort()
-			p.info(l.CannotWaiting())
+			p.info(p.t.T(language.KeyCannotWaiting))
 		}
 		p.infoCards(p.PlayerCards)
 	} else {
 		err := p.PlayerCards.DelE(card)
 		if err != nil {
 			if p.FixedCards.ContainsC(card) {
-				p.info(l.CannotPlayCard())
+				p.info(p.t.T(language.KeyCannotPlayCard))
 			} else if c.CardsList.ContainsC(card) {
-				p.info(l.WithoutThisCard())
+				p.info(p.t.T(language.KeyWithoutThisCard))
 			} else {
-				p.info(l.UnrecognizedInput())
+				p.info(p.t.T(language.KeyUnrecognizedInput))
 			}
 		}
 		p.infoCards(p.PlayerCards)
@@ -370,11 +370,11 @@ func (p *Player) robotPlayCard() {
 		p.printResult()
 	} else {
 		card := p.CardsPool.DelL()
-		p.info(fmt.Sprintf("%s: %s", l.RobotPlayACard(), card))
+		p.info(fmt.Sprintf("%s: %s", p.t.T(language.KeyRobotPlayACard), card))
 
 		p.PlayerCards.NewC(card)
 		if p.JudgeIsWin(true) {
-			p.debug(l.UserWin())
+			p.debug(p.t.T(language.KeyUserWin))
 			time.Sleep(p.sleepTime)
 			p.result = result.Win
 			p.ScoreItem.AddI(score.Win)
@@ -429,9 +429,9 @@ func (p *Player) userInput(card c.Card, listCard bool, pung bool) (bool, bool) {
 	}
 	var askPlayer, inputInfo string
 	if pung {
-		askPlayer, inputInfo = l.AskIfPung(), l.AskPlayerPungInputInfo()
+		askPlayer, inputInfo = p.t.T(language.KeyAskIfPung), p.t.T(language.KeyAskPlayerPungInputInfo)
 	} else {
-		askPlayer, inputInfo = l.AskIfKong(), l.AskPlayerKongInputInfo()
+		askPlayer, inputInfo = p.t.T(language.KeyAskIfKong), p.t.T(language.KeyAskPlayerKongInputInfo)
 	}
 
 	info, _ := p.ui.PromptInfo(fmt.Sprintf("%s %s", askPlayer, card))
@@ -442,18 +442,18 @@ func (p *Player) userInput(card c.Card, listCard bool, pung bool) (bool, bool) {
 	} else if info == "N" || info == "NO" {
 		return false, true
 	} else {
-		p.info(l.UnrecognizedInput())
+		p.info(p.t.T(language.KeyUnrecognizedInput))
 		return false, false
 	}
 }
 
 func (p *Player) userGroup(card c.Card) {
-	p.debug(fmt.Sprintf("%s: %s", l.PlayerWaiting(), card))
+	p.debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyPlayerWaiting), card))
 	p.FixedCards.NewC(card, card, card)
 	p.PlayerCards.DelT(card, 2)
 	p.isClear = false
-	p.debug(fmt.Sprintf("%s: %s", l.PlayerPung(), p.FixedCards.Beauty()))
-	p.info(fmt.Sprintf("%s: %s", l.FixedCard(), p.FixedCards.Beauty()))
+	p.debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyPlayerPung), p.FixedCards.Beauty()))
+	p.info(fmt.Sprintf("%s: %s", p.t.T(language.KeyFixedCard), p.FixedCards.Beauty()))
 	p.infoCards(p.PlayerCards)
 
 	for {
@@ -465,7 +465,7 @@ func (p *Player) userGroup(card c.Card) {
 }
 
 func (p *Player) changeGroupThreeToFour(card c.Card) {
-	p.debug(fmt.Sprintf("%s: %s", l.PlayerAddKong(), card))
+	p.debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyPlayerAddKong), card))
 	p.FixedCards.NewC(card)
 	p.PlayerCards.DelM(card)
 	p.GroupFourCount++
@@ -474,7 +474,7 @@ func (p *Player) changeGroupThreeToFour(card c.Card) {
 }
 
 func (p *Player) userGroupFour(card c.Card, nDel int, self bool) {
-	p.debug(fmt.Sprintf("%s:, %s", l.PlayerKong(), card))
+	p.debug(fmt.Sprintf("%s:, %s", p.t.T(language.KeyPlayerKong), card))
 	p.GroupFourCount++
 	if self {
 		p.ScoreItem.AddI(score.ConcealedKong)
@@ -490,12 +490,12 @@ func (p *Player) userGroupFour(card c.Card, nDel int, self bool) {
 func (p *Player) printResult() {
 	switch p.result {
 	case result.Win:
-		p.info(l.UWin())
+		p.info(p.t.T(language.KeyUWin))
 	case result.Equal:
-		p.info(l.Draw())
+		p.info(p.t.T(language.KeyDraw))
 	case result.Lose:
-		p.info(l.ULose())
-		p.info(fmt.Sprintf("%s: %s", l.RobotsCard(), p.RobotCards.Beauty()))
+		p.info(p.t.T(language.KeyULose))
+		p.info(fmt.Sprintf("%s: %s", p.t.T(language.KeyRobotsCard), p.RobotCards.Beauty()))
 	default:
 		panic("Invalid result value")
 	}
@@ -542,7 +542,7 @@ func (p *Player) JudgeIsWin(final bool) bool {
 		}
 		if len(complete)+fixedCardsGroupLength == 5 {
 			if final {
-				p.debug(fmt.Sprintf("%s: %s", l.CardAnalysisResult(), complete))
+				p.debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyCardAnalysisResult), complete))
 				if len(complete) >= 3 {
 					// check if continuous line
 					for _, k := range utils.MajorCardList {
@@ -610,7 +610,7 @@ func (p *Player) JudgeIsWin(final bool) bool {
 	}
 	if isThirteenOne && hasPair && len(*p.FixedCards) == 0 {
 		if final {
-			p.debug(l.MatchThirteenOne())
+			p.debug(p.t.T(language.KeyMatchThirteenOne))
 			p.ScoreItem.AddI(score.ThirteenOne)
 		}
 		return true
@@ -618,7 +618,7 @@ func (p *Player) JudgeIsWin(final bool) bool {
 
 	if isSevenPairs && len(*p.FixedCards) == 0 {
 		if final {
-			p.debug(l.MatchSevenPairs())
+			p.debug(p.t.T(language.KeyMatchSevenPairs))
 			p.ScoreItem.AddI(score.SevenPairs)
 		}
 		return true
@@ -641,10 +641,10 @@ func (p *Player) CheckIsWaiting() (bool, *c.Cards) {
 	}
 	if len(*res) != 0 {
 		res.Sort()
-		p.debug(l.MatchWaiting())
+		p.debug(p.t.T(language.KeyMatchWaiting))
 		return true, res
 	} else {
-		p.debug(l.NotMatchWaiting())
+		p.debug(p.t.T(language.KeyNotMatchWaiting))
 		return false, res
 	}
 }
@@ -668,7 +668,7 @@ func (p *Player) getMissCard() {
 			cardKind.NewC(c.Card(i[0]))
 		}
 	}
-	p.debug(fmt.Sprintf("%s: %s", l.CardKind(), cardKind))
+	p.debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyCardKind), cardKind))
 	count := 3 - len(cardKind)
 	if count == 1 {
 		p.ScoreItem.AddI(score.MissOneKind)
@@ -699,12 +699,12 @@ func (p *Player) Main() (result.Result, int, int) {
 
 	p.counter++
 	p.getMissCard()
-	p.debug(fmt.Sprintf("%s: %s", l.ScoreItem(), *p.ScoreItem))
+	p.debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyScoreItem), *p.ScoreItem))
 	amount, scoreDetail := score.GetScore(p.ScoreItem, p.counter-1)
-	p.debug(fmt.Sprintf("%s: %s", l.LastCard(), *p.CardsPool))
-	p.info(fmt.Sprintf("%s: %v", l.ThisScore(), amount))
+	p.debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyLastCard), *p.CardsPool))
+	p.info(fmt.Sprintf("%s: %v", p.t.T(language.KeyThisScore), amount))
 	if amount != 0 {
-		if view := ui.RenderScoreDetail(scoreDetail); view != "" {
+		if view := ui.RenderScoreDetail(p.t, scoreDetail); view != "" {
 			p.info(view)
 		}
 	}
