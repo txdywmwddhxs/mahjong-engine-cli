@@ -33,7 +33,7 @@ var sortBase = []score.Item{
 	score.MissTwoKind,
 	score.SevenPairs,
 	score.ContinuousLine,
-	score.ThirteenOne,
+	score.ThirteenOrphans,
 	score.OwnDraw,
 }
 

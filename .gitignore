@@ -1,28 +1,39 @@
-*.log
-config/config.json
-*.bak
-*/__pycache__/
-*.pid
-*/.idea/
-src/bug/
-!src/bug/
-!src/bug/*.md
-
-# build artifacts
+# Build and packaging outputs
 /bin/
-*.exe
 /dist/
-
-# runtime data
-/log/
-/pid/
-
-# OS / editor noise
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
-
-# Go build/test outputs
+/play
+/main
+/src/play
+/src/main
+*.exe
 *.test
 *.out
+*.prof
+
+# Local runtime state
+/config/config.json
+/log/
+/pid/
+*.log
+*.pid
+
+# Local recordings (including numbered rounds from --record)
+/demo.json
+/demo.[0-9]*.json
+/game.json
+/game.[0-9]*.json
+/replays/
+
+# Editor, OS and temporary files
+.idea/
+.vscode/
+__pycache__/
+.DS_Store
+._*
+Thumbs.db
+*.bak
+*.tmp
+*.temp
+*.swp
+*.swo
+*~

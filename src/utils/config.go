@@ -36,10 +36,8 @@ func init() {
 	initRuntimePaths()
 
 	// Allow build-time injection (e.g. via -ldflags "-X .../utils.Version=...").
-	// If not injected, fall back to reading from the repository metadata.
-	if strings.TrimSpace(Version) == "" {
-		Version = loadVersion()
-	}
+	// VERSION is the only file-based source; changelog is display content.
+	Version = resolveVersion(Version)
 	Config = loadConfig()
 
 	// Defaults for first run / missing config.json.
@@ -50,8 +48,6 @@ func init() {
 		Config.Version = Version
 	}
 
-	// Ensure config file exists on disk.
-	UpdateConfigFile()
 }
 
 func loadConfig() ConfigType {
@@ -78,20 +74,19 @@ func loadConfig() ConfigType {
 	return c
 }
 
-func loadVersion() string {
-	content, err := os.ReadFile(ChangeLogPath)
-	if err != nil {
-		return ""
+// resolveVersion prefers build-time injection so a packaged binary retains its
+// version even if runtime metadata is missing. Unversioned builds use dev.
+func resolveVersion(injected string) string {
+	if version := strings.TrimSpace(injected); version != "" {
+		return version
 	}
-	contentList := strings.Split(string(content), "\n")
-	length := len(contentList)
-	for i := 0; i < length; i++ {
-		line := strings.TrimSpace(contentList[length-i-1])
-		if strings.HasPrefix(line, "v") {
-			return line
+	content, err := os.ReadFile(VersionFilePath)
+	if err == nil {
+		if version := strings.TrimSpace(string(content)); version != "" {
+			return version
 		}
 	}
-	return ""
+	return "dev"
 }
 
 func UpdateConfig(result r.Result, score int) {
@@ -114,8 +109,8 @@ func UpdateConfig(result r.Result, score int) {
 	default:
 		panic("Invalid result value")
 	}
-	Config.Rate = strconv.FormatFloat(float64(Config.Win)/float64(Config.Total)*100,
-		'G', 4, 32) + "%"
+	Config.Rate = strconv.FormatFloat(float64(Config.Win)/float64(Config.Total)*statisticsPercentScale,
+		'G', winRateSignificantDigits, winRateFloatBitSize) + "%"
 	Config.Score += score
 	UpdateConfigFile()
 }

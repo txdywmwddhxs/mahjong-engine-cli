@@ -34,28 +34,28 @@ func (s *scriptUI) next() (string, error) {
 	return v, nil
 }
 
-func TestUserInput_YNAndInvalid(t *testing.T) {
+func TestConfirmMeld_YNAndInvalid(t *testing.T) {
 	tr := language.New(utils.English)
 	u := &scriptUI{inputs: []string{"Y", "NO", "maybe"}}
 
 	p := NewPlayer(logging.NopLogger(), u, tr, utils.English)
 	card := c.Card("B1")
 
-	yes, ok := p.userInput(card, false, true)
+	yes, ok := p.confirmMeld(card, false, true)
 	if !ok || !yes {
 		t.Fatalf("expected Y => (true,true)")
 	}
-	no, ok := p.userInput(card, false, false)
+	no, ok := p.confirmMeld(card, false, false)
 	if !ok || no {
 		t.Fatalf("expected NO => (false,true)")
 	}
-	_, ok = p.userInput(card, false, false)
+	_, ok = p.confirmMeld(card, false, false)
 	if ok {
 		t.Fatalf("expected invalid => ok=false")
 	}
 }
 
-func TestOutCard_EnterAutoPlaysNewCard(t *testing.T) {
+func TestHandleDiscard_EnterAutoPlaysNewCard(t *testing.T) {
 	tr := language.New(utils.English)
 	u := &scriptUI{inputs: []string{""}}
 
@@ -63,8 +63,8 @@ func TestOutCard_EnterAutoPlaysNewCard(t *testing.T) {
 	nc := c.Card("B1")
 	p.PlayerCards = &c.Cards{nc, "W1", "W2"}
 
-	p.outCard(nc)
-	if p.PlayerCards.ContainsC(nc) {
+	p.handleDiscard(nc)
+	if p.PlayerCards.Contains(nc) {
 		t.Fatalf("expected new card %s to be removed on empty input", nc)
 	}
 }

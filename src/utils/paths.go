@@ -9,6 +9,9 @@ var (
 	// RootPath is the detected project root directory (best effort).
 	RootPath string
 
+	// VersionFilePath is the absolute path to the root VERSION file.
+	VersionFilePath string
+
 	// ConfigFilePath is the absolute path to config/config.json.
 	ConfigFilePath string
 
@@ -28,17 +31,24 @@ var (
 func initRuntimePaths() {
 	RootPath = findProjectRoot()
 
+	VersionFilePath = filepath.Join(RootPath, "VERSION")
 	ConfigFilePath = filepath.Join(RootPath, "config", "config.json")
 	ChangeLogPath = filepath.Join(RootPath, "config", "CHANGELOG.txt")
 	LogPath = filepath.Join(RootPath, "log", "play.log")
 	HistoryLogDir = filepath.Join(RootPath, "log", "history_log")
 	PIDPath = filepath.Join(RootPath, "pid", "play.pid")
 
-	// Ensure required directories exist.
-	_ = os.MkdirAll(filepath.Dir(ConfigFilePath), 0o755)
-	_ = os.MkdirAll(filepath.Dir(LogPath), 0o755)
-	_ = os.MkdirAll(HistoryLogDir, 0o755)
-	_ = os.MkdirAll(filepath.Dir(PIDPath), 0o755)
+}
+
+// PrepareRuntime is called only after selecting normal play. Package loading,
+// replay, verification and command-line validation do not create runtime files.
+func PrepareRuntime() error {
+	for _, directory := range []string{filepath.Dir(ConfigFilePath), filepath.Dir(LogPath), HistoryLogDir, filepath.Dir(PIDPath)} {
+		if err := os.MkdirAll(directory, 0o755); err != nil {
+			return err
+		}
+	}
+	return writeConfigFile()
 }
 
 func findProjectRoot() string {
@@ -59,8 +69,8 @@ func findProjectRoot() string {
 	for _, start := range starts {
 		dir := start
 		for {
-			// Prefer CHANGELOG.txt marker if present.
-			if fileExists(filepath.Join(dir, "config", "CHANGELOG.txt")) {
+			// VERSION marks both source trees and packaged runtime roots.
+			if fileExists(filepath.Join(dir, "VERSION")) {
 				return dir
 			}
 			// Fallback marker for module root.

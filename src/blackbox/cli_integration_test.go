@@ -27,9 +27,9 @@ func TestCLI_OneRound_Smoke(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(work, "config"), 0o755); err != nil {
 		t.Fatalf("mkdir config: %v", err)
 	}
-	// Minimal CHANGELOG marker so runtime root detection works.
-	if err := os.WriteFile(filepath.Join(work, "config", "CHANGELOG.txt"), []byte("v0.0.0\n"), 0o666); err != nil {
-		t.Fatalf("write changelog: %v", err)
+	// VERSION marks the runtime root and supplies the source-build version.
+	if err := os.WriteFile(filepath.Join(work, "VERSION"), []byte("v0.0.0\n"), 0o666); err != nil {
+		t.Fatalf("write VERSION: %v", err)
 	}
 
 	bin := filepath.Join(tmp, "play")

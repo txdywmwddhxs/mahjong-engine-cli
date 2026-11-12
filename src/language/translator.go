@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/txdywmwddhxs/mahjong-engine-cli/src/rules"
 	"github.com/txdywmwddhxs/mahjong-engine-cli/src/score"
 	"github.com/txdywmwddhxs/mahjong-engine-cli/src/utils"
 )
@@ -70,10 +71,10 @@ func (t Translator) ScoreItemName(item score.Item) string {
 	case score.MissOneKind:
 		return t.T(KeyScoreMissOneKind)
 	case score.Counter:
-		return t.T(KeyScoreCounter, utils.CountOfWinAward)
+		return t.T(KeyScoreCounter, rules.EarlyFinishTurnLimit)
 	case score.SevenPairs:
 		return t.T(KeyScoreSevenPairs)
-	case score.ThirteenOne:
+	case score.ThirteenOrphans:
 		return t.T(KeyScoreThirteenOne)
 	case score.ContinuousLine:
 		return t.T(KeyScoreContinuousLine)

@@ -94,7 +94,10 @@ echo "  OutDir : $OUTDIR"
 GOOS="$GOOS" GOARCH="$GOARCH" CGO_ENABLED=0 \
   go build -trimpath -ldflags "$LDFLAGS" -o "$OUTDIR/$BIN_NAME" "$ROOT/src"
 
-# Runtime files (minimal set required by current path detection + changelog display).
+# VERSION marks the package root and agrees with the injected build version.
+printf '%s\n' "$VER" > "$OUTDIR/VERSION"
+
+# Changelog is included for display only; it is not a version source.
 mkdir -p "$OUTDIR/config"
 cp "$ROOT/config/CHANGELOG.txt" "$OUTDIR/config/CHANGELOG.txt"
 

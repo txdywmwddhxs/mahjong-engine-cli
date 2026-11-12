@@ -2,56 +2,39 @@
 set -eu
 set -o pipefail 2>/dev/null || true
 
-find_root() {
-  local root=""
-  root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
-  if [[ -n "$root" ]]; then
-    echo "$root"
-    return 0
-  fi
-  local dir="$PWD"
-  while :; do
-    if [[ -f "$dir/go.mod" ]]; then
-      echo "$dir"
-      return 0
-    fi
-    local parent
-    parent="$(cd "$dir/.." && pwd)"
-    if [[ "$parent" == "$dir" ]]; then
-      break
-    fi
-    dir="$parent"
-  done
-  echo "$PWD"
-}
-
 usage() {
   cat <<'EOF'
 Usage:
-  ./scripts/check.sh [quick|full]
+  ./scripts/check.sh [quick|full|release]
 
 Modes:
   quick  Fast local checks (default): gofmt check + go vet + go test ./...
   full   Stricter checks:
          - gofmt check
          - go vet
-         - go test -count=1 -race ./...
-         - go test -count=1 -tags=integration ./...   (blackbox regression)
+         - go test -count=1 -short=false -race -timeout=5m ./...
+         - go test -count=1 -tags=integration ./... (blackbox regression)
          - coverage gate >= 50% (override via COVER_MIN)
 
+  release Release gate: full checks + 2,190,387-hand differential experiment,
+          256 seeded game replays, native release/test package smoke tests,
+          and version/changelog consistency. Coverage must be >= 50%.
+
 Notes:
-  - This script does NOT modify files; it fails if gofmt would change anything.
+  - Requires Git, Go and a C compiler for the race detector; package checks use Bash.
+  - Does not rewrite source or normal runtime data. full/release write coverage
+    under dist/; game and package fixtures are isolated in temporary directories.
   - Coverage is computed with: go test -coverpkg=./... -coverprofile=... ./...
 EOF
 }
 
 MODE="${1:-quick}"
-if [[ "$MODE" != "quick" && "$MODE" != "full" ]]; then
+if [[ "$MODE" != "quick" && "$MODE" != "full" && "$MODE" != "release" ]]; then
   usage
   exit 2
 fi
 
-ROOT="$(find_root)"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 echo "[check] mode=$MODE root=$ROOT"
@@ -68,14 +51,20 @@ fi
 echo "[check] go vet"
 go vet ./...
 
-if [[ "$MODE" == "full" ]]; then
+if [[ "$MODE" == "full" || "$MODE" == "release" ]]; then
   echo "[check] go test (no cache, race)"
-  go test -count=1 -race ./...
+  go test -count=1 -short=false -race -timeout=5m ./...
 
   echo "[check] go test (blackbox regression, integration tag)"
-  go test -count=1 -tags=integration ./...
+  if [[ "$MODE" == "release" ]]; then
+    MAHJONG_WIN_EXPERIMENT=1 MAHJONG_RELEASE_CHECK=1 \
+      go test -count=1 -short=false -tags=integration -timeout=10m ./...
+  else
+    go test -count=1 -short=false -tags=integration -timeout=5m ./...
+  fi
 
   COVER_MIN="${COVER_MIN:-50}"
+  if [[ "$MODE" == "release" ]]; then COVER_MIN=50; fi
   COVER_OUT="${COVER_OUT:-$ROOT/dist/coverage.out}"
   mkdir -p "$(dirname "$COVER_OUT")"
 
@@ -92,6 +81,10 @@ else
   go test ./...
 fi
 
-echo "[check] OK"
+if [[ "$MODE" == "release" ]]; then
+  echo "[check] RELEASE CHECK PASSED ($(go env GOHOSTOS)/$(go env GOHOSTARCH))"
+else
+  echo "[check] OK"
+fi
 
 

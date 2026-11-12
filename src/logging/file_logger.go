@@ -2,6 +2,7 @@ package logging
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"sync"
 )
@@ -56,4 +57,22 @@ func (l *FileLogger) Close() error {
 	err := l.f.Close()
 	l.f = nil
 	return err
+}
+
+// WriteBlock makes log replay persistence observable instead of silently losing
+// a recording on a closed file or a failed write.
+func (l *FileLogger) WriteBlock(block string) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.f == nil {
+		return os.ErrClosed
+	}
+	n, err := io.WriteString(l.f, block)
+	if err != nil {
+		return err
+	}
+	if n != len(block) {
+		return io.ErrShortWrite
+	}
+	return l.f.Sync()
 }

@@ -3,12 +3,13 @@ package player
 import (
 	"fmt"
 	"strconv"
-	"strings"
-	"time"
 
 	c "github.com/txdywmwddhxs/mahjong-engine-cli/src/card"
+	"github.com/txdywmwddhxs/mahjong-engine-cli/src/hand"
 	"github.com/txdywmwddhxs/mahjong-engine-cli/src/language"
+	"github.com/txdywmwddhxs/mahjong-engine-cli/src/replay"
 	"github.com/txdywmwddhxs/mahjong-engine-cli/src/result"
+	"github.com/txdywmwddhxs/mahjong-engine-cli/src/rules"
 	"github.com/txdywmwddhxs/mahjong-engine-cli/src/score"
 	"github.com/txdywmwddhxs/mahjong-engine-cli/src/ui"
 	"github.com/txdywmwddhxs/mahjong-engine-cli/src/utils"
@@ -22,11 +23,7 @@ func (p *Player) info(msg string) {
 }
 
 func (p *Player) infoCards(cards *c.Cards) {
-	view := ui.RenderCards(cards)
-	p.logger.Info(view, p.counter)
-	if p.ui != nil {
-		p.ui.Info(view)
-	}
+	p.info(ui.RenderCards(cards))
 }
 
 func (p *Player) debug(msg string) {
@@ -34,118 +31,118 @@ func (p *Player) debug(msg string) {
 }
 
 func (p *Player) initCardsPool() {
-	p.CardsPool = c.InitCardsPool()
+	p.CardsPool = c.InitCardsPoolWithRNG(p.rng)
 	p.debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyInitCardPoolDone), *p.CardsPool))
 }
 
 func (p *Player) initPlayerCards() {
-	*p.PlayerCards = (*p.CardsPool)[:13]
+	*p.PlayerCards = (*p.CardsPool)[:c.InitialHandSize]
 	p.PlayerCards.Sort()
-	*p.CardsPool = (*p.CardsPool)[13:]
-	p.debug(fmt.Sprintf("%s: %v", p.t.T(language.KeyInitPlayerCardDone), p.PlayerCards.Beauty()))
+	*p.CardsPool = (*p.CardsPool)[c.InitialHandSize:]
+	p.debug(fmt.Sprintf("%s: %v", p.t.T(language.KeyInitPlayerCardDone), p.PlayerCards.Display()))
 }
 
 func (p *Player) initRobotCards() {
-	res := c.Cards{}
-	//gen pair card group
-	pairGroup := (*p.CardsPool)[0]
-	res = append(res, pairGroup, pairGroup)
-	p.CardsPool.DelM(pairGroup, pairGroup)
+	robotHand := c.Cards{}
+	// Generate the pair.
+	pairTile := (*p.CardsPool)[0]
+	robotHand = append(robotHand, pairTile, pairTile)
+	p.CardsPool.RemoveTiles(pairTile, pairTile)
 
-	nTripleCardGroup := utils.RandInt(0, 2)
-	nSequenceGroup := 4 - nTripleCardGroup
-	tripleCardGroup := make([]c.Cards, 0, nTripleCardGroup)
-	sequenceGroup := make([]c.Cards, 0, nSequenceGroup)
+	pungCount := p.randInt(0, rules.RobotMaxPungCount)
+	sequenceCount := c.WinningMeldCount - pungCount
+	pungs := make([]c.Cards, 0, pungCount)
+	sequences := make([]c.Cards, 0, sequenceCount)
 
-	// gen triple card group
-	if nTripleCardGroup != 0 {
+	// Generate pungs.
+	if pungCount != 0 {
 		for {
-			// seed: decide card kind
-			seed := utils.RandInt(1, 4)
-			var cn c.Card
-			switch seed {
+			// Select a numbered suit or honors.
+			kindIndex := p.randInt(1, c.SuitCount+1)
+			var pungTile c.Card
+			switch kindIndex {
 			case 1:
-				k := utils.MajorCardList[seed-1]
-				v := utils.RandInt(1, 9)
-				cn = c.Card(string(k) + strconv.Itoa(v))
+				suit := utils.MajorCardList[kindIndex-1]
+				rank := p.randInt(c.MinRank, c.MaxRank)
+				pungTile = c.Card(string(suit) + strconv.Itoa(rank))
 			case 2:
-				k := utils.MajorCardList[seed-1]
-				v := utils.RandInt(1, 9)
-				cn = c.Card(string(k) + strconv.Itoa(v))
+				suit := utils.MajorCardList[kindIndex-1]
+				rank := p.randInt(c.MinRank, c.MaxRank)
+				pungTile = c.Card(string(suit) + strconv.Itoa(rank))
 			case 3:
-				k := utils.MajorCardList[seed-1]
-				v := utils.RandInt(1, 9)
-				cn = c.Card(string(k) + strconv.Itoa(v))
+				suit := utils.MajorCardList[kindIndex-1]
+				rank := p.randInt(c.MinRank, c.MaxRank)
+				pungTile = c.Card(string(suit) + strconv.Itoa(rank))
 			default:
-				seed := utils.RandInt(0, 6)
-				cn = utils.MinorCardList[seed]
+				honorIndex := p.randInt(0, c.HonorKindCount-1)
+				pungTile = utils.MinorCardList[honorIndex]
 			}
 
-			if p.CardsPool.CountC(cn) >= 3 {
-				tripleCardGroup = append(tripleCardGroup, c.Cards{cn, cn, cn})
-				p.CardsPool.DelT(cn, 3)
+			if p.CardsPool.Count(pungTile) >= c.MeldSize {
+				pungs = append(pungs, c.Cards{pungTile, pungTile, pungTile})
+				p.CardsPool.RemoveCopies(pungTile, c.MeldSize)
 			}
 
-			if len(tripleCardGroup) == nTripleCardGroup {
+			if len(pungs) == pungCount {
 				break
 			}
-			if len(tripleCardGroup) > nTripleCardGroup {
+			if len(pungs) > pungCount {
 				panic("generate tri error")
 			}
 		}
 	}
 
-	// gen sequence card group
-	if nSequenceGroup != 0 {
+	// Generate sequences.
+	if sequenceCount != 0 {
 		for {
-			seed := utils.RandInt(0, 2)
-			// card kind
-			first := utils.MajorCardList[seed]
-			// card num
-			second := utils.RandInt(2, 8)
-			fcn := first + c.Card(strconv.Itoa(second))
-			scn := first + c.Card(strconv.Itoa(second-1))
-			ncn := first + c.Card(strconv.Itoa(second+1))
-			if p.CardsPool.ContainsC(fcn) && p.CardsPool.ContainsC(scn) && p.CardsPool.ContainsC(ncn) {
-				sequenceGroup = append(sequenceGroup, c.Cards{fcn, scn, ncn})
-				p.CardsPool.DelM(ncn, scn, fcn)
+			suitIndex := p.randInt(0, c.SuitCount-1)
+			// Select the suit.
+			suit := utils.MajorCardList[suitIndex]
+			// Select the middle rank.
+			middleRank := p.randInt(c.MinRank+1, c.MaxRank-1)
+			middleTile := suit + c.Card(strconv.Itoa(middleRank))
+			lowerTile := suit + c.Card(strconv.Itoa(middleRank-1))
+			upperTile := suit + c.Card(strconv.Itoa(middleRank+1))
+			if p.CardsPool.Contains(middleTile) && p.CardsPool.Contains(lowerTile) && p.CardsPool.Contains(upperTile) {
+				sequences = append(sequences, c.Cards{middleTile, lowerTile, upperTile})
+				p.CardsPool.RemoveTiles(upperTile, lowerTile, middleTile)
 			}
 
-			if len(sequenceGroup) == nSequenceGroup {
+			if len(sequences) == sequenceCount {
 				break
 			}
-			if len(sequenceGroup) > nSequenceGroup {
+			if len(sequences) > sequenceCount {
 				panic("generate seq error")
 			}
 		}
 	}
 
-	for _, i := range tripleCardGroup {
-		res = append(res, i...)
+	for _, pung := range pungs {
+		robotHand = append(robotHand, pung...)
 	}
-	for _, j := range sequenceGroup {
-		res = append(res, j...)
+	for _, sequence := range sequences {
+		robotHand = append(robotHand, sequence...)
 	}
 
-	res.Sort()
-	*p.RobotCards = res
-	p.debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyInitRobotCardDone), p.RobotCards.Beauty()))
+	robotHand.Sort()
+	*p.RobotCards = robotHand
+	p.debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyInitRobotCardDone), p.RobotCards.Display()))
 }
 
 func (p *Player) generateLimit() {
-	goodCardLimit, _ := strconv.Atoi(utils.RateOfRobotGoodCard[:len(utils.RateOfRobotGoodCard)-1])
-	babCardLimit, _ := strconv.Atoi(utils.RateOfRobotBadCard[:len(utils.RateOfRobotBadCard)-1])
-	babCardLimit += goodCardLimit
+	goodHandThreshold := rules.RobotGoodHandPercent
+	badHandThreshold := rules.RobotBadHandPercent
+	badHandThreshold += goodHandThreshold
 	p.debug(fmt.Sprintf("%s: %d%%, %d%%, %d%%",
-		p.t.T(language.KeyRateOfRobotsCard), goodCardLimit, babCardLimit-goodCardLimit, 100-goodCardLimit))
-	seed := utils.RandInt(0, 99)
-	p.debug(fmt.Sprintf("%s: %d", p.t.T(language.KeyRandomNumberSeed), seed))
-	if seed <= goodCardLimit {
-		p.limit = utils.RandInt(utils.GoodCardLimitRangeStart, utils.GoodCardLimitRangeEnd)
-	} else if seed <= babCardLimit {
-		p.limit = utils.RandInt(utils.GoodCardLimitRangeEnd, utils.BadCardLimitRangeStart)
+		p.t.T(language.KeyRateOfRobotsCard), goodHandThreshold, badHandThreshold-goodHandThreshold, rules.PercentScale-goodHandThreshold))
+	difficultyRoll := p.randInt(0, rules.MaxDifficultyRoll)
+	p.debug(fmt.Sprintf("%s: %d", p.t.T(language.KeyRandomNumberSeed), difficultyRoll))
+	if difficultyRoll <= goodHandThreshold {
+		p.limit = p.randInt(rules.GoodHandLimitMin, rules.GoodHandLimitMax)
+	} else if difficultyRoll <= badHandThreshold {
+		p.limit = p.randInt(rules.GoodHandLimitMax, rules.BadHandLimitMin)
 	} else {
-		p.limit = utils.RandInt(utils.BadCardLimitRangeStart, utils.BadCardLimitRangeEnd)
+		p.limit = p.randInt(rules.BadHandLimitMin, rules.BadHandLimitMax)
 	}
 }
 
@@ -157,34 +154,35 @@ func (p *Player) init() {
 	p.initPlayerCards()
 }
 
-func (p *Player) playerPlayCard(judge bool) {
+func (p *Player) drawAndPlay(checkOpeningKongs bool) {
 	newCard := (*p.CardsPool)[0]
-	p.PlayerCards.NewC(newCard)
-	p.CardsPool.DelM(newCard)
+	p.PlayerCards.Add(newCard)
+	p.CardsPool.RemoveTiles(newCard)
+	p.emit("draw", newCard)
 	p.info(fmt.Sprintf("%s: %s", p.t.T(language.KeyGetNewCard), newCard))
 
-	if p.counter == 1 && judge {
+	if p.counter == rules.FirstTurn && checkOpeningKongs {
 		p.PlayerCards.Sort()
 		handledCards := c.Cards{}
 
 	search:
 		for _, card := range *p.PlayerCards {
-			if handledCards.ContainsC(card) {
+			if handledCards.Contains(card) {
 				continue
 			}
-			handledCards.NewC(card)
-			if p.PlayerCards.CountC(card) == 4 {
-				userConfirmGroupFour := false
+			handledCards.Add(card)
+			if p.PlayerCards.Count(card) == c.KongSize {
+				kongAccepted := false
 				isValidInput := false
 				for {
 					p.infoCards(p.PlayerCards)
-					userConfirmGroupFour, isValidInput = p.userInput(card, false, false)
+					kongAccepted, isValidInput = p.confirmMeld(card, false, false)
 					if isValidInput && p.result == result.Default {
 						break
 					}
 				}
-				if userConfirmGroupFour {
-					p.userGroupFour(card, 4, true)
+				if kongAccepted {
+					p.declareKong(card, c.KongSize, true)
 					goto search
 				}
 			}
@@ -194,116 +192,120 @@ func (p *Player) playerPlayCard(judge bool) {
 		return
 	}
 
-	if p.sleepTime != 0 && p.counter != 1 {
-		time.Sleep(p.sleepTime + 350*time.Millisecond)
+	if p.sleepTime != 0 && p.counter != rules.FirstTurn {
+		p.sleep(p.sleepTime + utils.DrawDisplayExtraDelay)
 	}
 	p.PlayerCards.Sort()
 	if len(*p.FixedCards) != 0 {
 		p.FixedCards.Sort()
-		p.info(fmt.Sprintf("%s: %s", p.t.T(language.KeyFixedCard), p.FixedCards.Beauty()))
+		p.info(fmt.Sprintf("%s: %s", p.t.T(language.KeyFixedCard), p.FixedCards.Display()))
 	}
 	p.infoCards(p.PlayerCards)
 
-	isWin := p.JudgeIsWin(true)
-	if isWin {
+	analysis := p.analyzeWin()
+	if analysis.IsWin() {
+		p.recordWinningPatterns(analysis)
 		p.debug(p.t.T(language.KeyScoreWin))
 		p.result = result.Win
-		p.ScoreItem.AddI(score.Win)
-		if p.counter <= utils.CountOfWinAward {
-			p.ScoreItem.AddI(score.Counter)
-		}
-		if p.isClear {
-			p.ScoreItem.AddI(score.OwnDraw)
-		}
+		p.recordOutcome(true, p.isClear)
 		p.printResult()
 		return
 	}
 	p.debug(p.t.T(language.KeyUserNotWin))
 
-	if p.PlayerCards.CountC(newCard) == 4 && !p.isWaiting {
-		userConfirmGroupFour, isValidInput := false, false
+	if p.PlayerCards.Count(newCard) == c.KongSize && !p.isWaiting {
+		kongAccepted, isValidInput := false, false
 		for {
 			if isValidInput {
 				break
 			}
-			userConfirmGroupFour, isValidInput = p.userInput(newCard, false, false)
+			kongAccepted, isValidInput = p.confirmMeld(newCard, false, false)
 		}
 		if p.result != result.Default {
 			return
 		}
-		if userConfirmGroupFour {
-			p.userGroupFour(newCard, 4, true)
+		if kongAccepted {
+			p.declareKong(newCard, c.KongSize, true)
 			return
 		}
 	}
 
 	// pung to kong
-	if p.FixedCards.CountC(newCard) == 3 && !p.isWaiting {
-		userConfirm, isValidInput := false, false
+	if p.FixedCards.Count(newCard) == c.MeldSize && !p.isWaiting {
+		kongAccepted, isValidInput := false, false
 		for {
 			if isValidInput {
 				break
 			}
-			userConfirm, isValidInput = p.userInput(newCard, false, false)
+			kongAccepted, isValidInput = p.confirmMeld(newCard, false, false)
 		}
 		if p.result != result.Default {
 			return
 		}
-		if userConfirm {
-			p.changeGroupThreeToFour(newCard)
+		if kongAccepted {
+			p.upgradePungToKong(newCard)
 			return
 		}
 	}
 
 	for {
-		if len(*p.PlayerCards)+len(*p.FixedCards)-p.GroupFourCount == 13 {
+		if len(*p.PlayerCards)+len(*p.FixedCards)-p.KongCount*c.KongExtraTiles == c.InitialHandSize {
 			break
-		} else if len(*p.PlayerCards)+len(*p.FixedCards)-p.GroupFourCount >= 15 {
+		} else if len(*p.PlayerCards)+len(*p.FixedCards)-p.KongCount*c.KongExtraTiles > c.WinningTileCount {
 			panic("Player card count error")
 		}
 
-		p.outCard(newCard)
+		p.handleDiscard(newCard)
 	}
 }
 
-func (p *Player) outCard(nc c.Card) {
-	var card c.Card
-	if !p.isWaiting {
-		input, _ := p.ui.PromptInfo(p.t.T(language.KeyPlayACard))
-		p.logger.Debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyPlayACardInputInfo), input), p.counter)
-		input = strings.ToUpper(strings.TrimSpace(input))
-		card = c.Card(input)
-	} else {
-		card = ""
-	}
-
-	if card == "" {
-		if nc == "" {
-			p.info(p.t.T(language.KeyUnrecognizedInput))
-			return
-		}
-		p.PlayerCards.DelM(nc)
-		if p.isWaiting {
-			p.info(fmt.Sprintf("%s: %s", p.t.T(language.KeyAutoPlay), nc))
-			time.Sleep(p.sleepTime)
-		}
-		p.infoCards(p.PlayerCards)
+func (p *Player) handleDiscard(drawnTile c.Card) {
+	if p.isWaiting {
+		p.applyAction(replay.Action{Kind: "discard_drawn"}, drawnTile)
 		return
 	}
+	action, id := p.decide("discard", drawnTile, p.t.T(language.KeyPlayACard))
+	p.logger.Debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyPlayACardInputInfo), action.Input()), p.counter)
+	accepted := false
+	if action.Kind == "invalid" {
+		p.info(p.t.T(language.KeyUnrecognizedInput))
+	} else {
+		accepted = p.applyAction(action, drawnTile)
+	}
+	p.decided(id, accepted)
+}
 
-	if card == "END" || card == "ENDL" {
+func (p *Player) applyAction(action replay.Action, drawnTile c.Card) bool {
+	if action.Kind == "discard_drawn" {
+		if drawnTile == "" {
+			p.info(p.t.T(language.KeyUnrecognizedInput))
+			return false
+		}
+		p.PlayerCards.RemoveTiles(drawnTile)
+		if p.isWaiting {
+			p.info(fmt.Sprintf("%s: %s", p.t.T(language.KeyAutoPlay), drawnTile))
+			p.sleep(p.sleepTime)
+		}
+		p.infoCards(p.PlayerCards)
+		p.emit("discard", drawnTile)
+		return true
+	}
+	switch action.Kind {
+	case "cancel":
 		p.info(p.t.T(language.KeyEnd))
 		p.result = result.Cancel
-		p.PlayerCards.DelL()
-		p.ScoreItem = &score.Items{}
-	} else if card == "WHOSYOURDADDY" {
+		p.PlayerCards.PopLast()
+		p.ScoreItems = &score.Items{}
+		return true
+	case "debug_win":
 		p.result = result.Win
 		p.info(p.t.T(language.KeyEnterScript))
-		p.PlayerCards.DelL()
+		p.PlayerCards.PopLast()
 		p.printResult()
-		p.ScoreItem = &score.Items{}
-	} else if card == "WARPTEN" {
-		utils.ChangeQuickMode()
+		p.ScoreItems = &score.Items{}
+		return true
+	case "toggle_speed":
+		// Speed is a presentation setting, never persisted by game actions.
 		if p.sleepTime != 0 {
 			p.sleepTime = 0
 			p.info(p.t.T(language.KeyEnterScript))
@@ -311,180 +313,177 @@ func (p *Player) outCard(nc c.Card) {
 			p.sleepTime = utils.SleepTime
 			p.info(p.t.T(language.KeyCancelScript))
 		}
-	} else if strings.HasSuffix(string(card), "TING") || strings.HasSuffix(string(card), "TT") {
-		inputArr := strings.Split(string(card), " ")
-		if len(inputArr) < 2 {
-			p.info(p.t.T(language.KeyCannotWaitingPlayCard))
-			p.infoCards(p.PlayerCards)
-			return
+		return true
+	}
+	if action.Kind == "declare_waiting" {
+		tile := action.Tile
+		if p.PlayerCards.Remove(tile) != nil {
+			p.badDiscard(tile)
+			return false
 		}
-		prepareToPlayCard := c.Card(strings.TrimSpace(inputArr[0]))
-		err := p.PlayerCards.DelE(prepareToPlayCard)
-		if err != nil {
-			if p.FixedCards.ContainsC(prepareToPlayCard) {
-				p.info(p.t.T(language.KeyCannotPlayCard))
-			} else if c.CardsList.ContainsC(prepareToPlayCard) {
-				p.info(p.t.T(language.KeyWithoutThisCard))
-			} else {
-				p.info(p.t.T(language.KeyUnrecognizedInput))
-			}
-			return
-		}
-		isWaiting, res := p.CheckIsWaiting()
-		if isWaiting {
-			p.isWaiting = true
-			p.info(fmt.Sprintf("%s: %s", p.t.T(language.KeyPlayerWaiting), res.Beauty()))
-			p.ScoreItem.AddI(score.Waiting)
-			if len(*res) == 1 {
-				p.ScoreItem.AddI(score.Single)
-			}
-		} else {
-			p.PlayerCards.NewC(prepareToPlayCard)
+		waiting, tiles := p.CheckIsWaiting()
+		if !waiting {
+			p.PlayerCards.Add(tile)
 			p.PlayerCards.Sort()
 			p.info(p.t.T(language.KeyCannotWaiting))
+			p.infoCards(p.PlayerCards)
+			return false
 		}
+		p.isWaiting = true
+		p.info(fmt.Sprintf("%s: %s", p.t.T(language.KeyPlayerWaiting), tiles.Display()))
+		p.recordWaiting(len(*tiles))
 		p.infoCards(p.PlayerCards)
-	} else {
-		err := p.PlayerCards.DelE(card)
-		if err != nil {
-			if p.FixedCards.ContainsC(card) {
-				p.info(p.t.T(language.KeyCannotPlayCard))
-			} else if c.CardsList.ContainsC(card) {
-				p.info(p.t.T(language.KeyWithoutThisCard))
-			} else {
-				p.info(p.t.T(language.KeyUnrecognizedInput))
-			}
-		}
-		p.infoCards(p.PlayerCards)
+		p.emit("discard", tile)
+		return true
 	}
+	card := action.Tile
+	if p.PlayerCards.Remove(card) != nil {
+		p.badDiscard(card)
+		return false
+	}
+	p.infoCards(p.PlayerCards)
+	p.emit("discard", card)
+	return true
 }
 
-func (p *Player) robotPlayCard() {
-	time.Sleep(p.sleepTime)
+func (p *Player) badDiscard(card c.Card) {
+	if p.FixedCards.Contains(card) {
+		p.info(p.t.T(language.KeyCannotPlayCard))
+	} else if c.CardsList.Contains(card) {
+		p.info(p.t.T(language.KeyWithoutThisCard))
+	} else {
+		p.info(p.t.T(language.KeyUnrecognizedInput))
+	}
+	p.infoCards(p.PlayerCards)
+}
+
+func (p *Player) playRobotTurn() {
+	p.sleep(p.sleepTime)
 	if p.counter >= p.limit {
 		p.result = result.Lose
-		p.ScoreItem.AddI(score.Lose)
-		if p.counter <= utils.CountOfWinAward {
-			p.ScoreItem.AddI(score.Counter)
-		}
+		p.recordOutcome(false, false)
 		p.printResult()
 	} else {
-		card := p.CardsPool.DelL()
+		card := p.CardsPool.PopLast()
+		p.emit("robot_discard", card)
 		p.info(fmt.Sprintf("%s: %s", p.t.T(language.KeyRobotPlayACard), card))
 
-		p.PlayerCards.NewC(card)
-		if p.JudgeIsWin(true) {
+		p.PlayerCards.Add(card)
+		// Keep gameplay/replay tile ordering explicit; analysis itself is pure.
+		p.PlayerCards.Sort()
+		analysis := p.analyzeWin()
+		if analysis.IsWin() {
+			p.recordWinningPatterns(analysis)
 			p.debug(p.t.T(language.KeyUserWin))
-			time.Sleep(p.sleepTime)
+			p.sleep(p.sleepTime)
 			p.result = result.Win
-			p.ScoreItem.AddI(score.Win)
-			if p.counter <= utils.CountOfWinAward {
-				p.ScoreItem.AddI(score.Counter)
-			}
+			p.recordOutcome(true, false)
 			p.printResult()
 			return
 		}
-		p.PlayerCards.DelM(card)
+		p.PlayerCards.RemoveTiles(card)
 
-		if p.PlayerCards.CountC(card) == 3 && !p.isWaiting {
-			uir, eff := false, false
+		if p.PlayerCards.Count(card) == c.MeldSize && !p.isWaiting {
+			meldAccepted, inputValid := false, false
 			for {
-				if eff {
+				if inputValid {
 					break
 				}
-				uir, eff = p.userInput(card, true, false)
+				meldAccepted, inputValid = p.confirmMeld(card, true, false)
 			}
 			if p.result != result.Default {
 				return
 			}
-			if uir {
-				p.userGroupFour(card, 3, false)
+			if meldAccepted {
+				p.declareKong(card, c.MeldSize, false)
 				p.changeCondition()
 			}
 		}
 
-		if p.PlayerCards.CountC(card) >= 2 && !p.isWaiting {
-			uir, eff := false, false
+		if p.PlayerCards.Count(card) >= c.PairSize && !p.isWaiting {
+			meldAccepted, inputValid := false, false
 			for {
-				if eff {
+				if inputValid {
 					break
 				}
 
-				uir, eff = p.userInput(card, true, true)
+				meldAccepted, inputValid = p.confirmMeld(card, true, true)
 			}
 			if p.result != result.Default {
 				return
 			}
-			if uir {
-				p.userGroup(card)
+			if meldAccepted {
+				p.claimPung(card)
 				p.changeCondition()
 			}
 		}
 	}
 }
 
-func (p *Player) userInput(card c.Card, listCard bool, pung bool) (bool, bool) {
-	if listCard {
+func (p *Player) confirmMeld(card c.Card, showHand bool, isPung bool) (bool, bool) {
+	if showHand {
 		p.infoCards(p.PlayerCards)
 	}
-	var askPlayer, inputInfo string
-	if pung {
-		askPlayer, inputInfo = p.t.T(language.KeyAskIfPung), p.t.T(language.KeyAskPlayerPungInputInfo)
+	var prompt, inputLabel string
+	if isPung {
+		prompt, inputLabel = p.t.T(language.KeyAskIfPung), p.t.T(language.KeyAskPlayerPungInputInfo)
 	} else {
-		askPlayer, inputInfo = p.t.T(language.KeyAskIfKong), p.t.T(language.KeyAskPlayerKongInputInfo)
+		prompt, inputLabel = p.t.T(language.KeyAskIfKong), p.t.T(language.KeyAskPlayerKongInputInfo)
 	}
 
-	info, _ := p.ui.PromptInfo(fmt.Sprintf("%s %s", askPlayer, card))
-	p.logger.Debug(fmt.Sprintf("%s: %s", inputInfo, info), p.counter)
-	info = strings.ToUpper(strings.TrimSpace(info))
-	if info == "Y" || info == "YES" {
-		return true, true
-	} else if info == "N" || info == "NO" {
-		return false, true
-	} else {
-		p.info(p.t.T(language.KeyUnrecognizedInput))
-		return false, false
+	kind := "confirm_kong"
+	if isPung {
+		kind = "confirm_pung"
 	}
+	action, id := p.decide(kind, card, fmt.Sprintf("%s %s", prompt, card))
+	p.logger.Debug(fmt.Sprintf("%s: %s", inputLabel, action.Input()), p.counter)
+	valid := action.Kind == "accept" || action.Kind == "decline"
+	p.decided(id, valid)
+	if !valid {
+		p.info(p.t.T(language.KeyUnrecognizedInput))
+	}
+	return action.Kind == "accept", valid
 }
 
-func (p *Player) userGroup(card c.Card) {
+func (p *Player) claimPung(card c.Card) {
 	p.debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyPlayerWaiting), card))
-	p.FixedCards.NewC(card, card, card)
-	p.PlayerCards.DelT(card, 2)
+	p.FixedCards.Add(card, card, card)
+	p.PlayerCards.RemoveCopies(card, c.MeldSize-1)
 	p.isClear = false
-	p.debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyPlayerPung), p.FixedCards.Beauty()))
-	p.info(fmt.Sprintf("%s: %s", p.t.T(language.KeyFixedCard), p.FixedCards.Beauty()))
+	p.emit("pung", card)
+	p.debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyPlayerPung), p.FixedCards.Display()))
+	p.info(fmt.Sprintf("%s: %s", p.t.T(language.KeyFixedCard), p.FixedCards.Display()))
 	p.infoCards(p.PlayerCards)
 
 	for {
-		if len(*p.PlayerCards)+len(*p.FixedCards)-p.GroupFourCount == 13 {
+		if len(*p.PlayerCards)+len(*p.FixedCards)-p.KongCount*c.KongExtraTiles == c.InitialHandSize {
 			break
 		}
-		p.outCard("")
+		p.handleDiscard("")
 	}
 }
 
-func (p *Player) changeGroupThreeToFour(card c.Card) {
+func (p *Player) upgradePungToKong(card c.Card) {
 	p.debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyPlayerAddKong), card))
-	p.FixedCards.NewC(card)
-	p.PlayerCards.DelM(card)
-	p.GroupFourCount++
-	p.ScoreItem.AddI(score.ExposedKong)
-	p.playerPlayCard(true)
+	p.FixedCards.Add(card)
+	p.PlayerCards.RemoveTiles(card)
+	p.KongCount++
+	p.recordKong(false)
+	p.emit("upgrade_kong", card)
+	p.drawAndPlay(true)
 }
 
-func (p *Player) userGroupFour(card c.Card, nDel int, self bool) {
+func (p *Player) declareKong(card c.Card, concealedTilesToRemove int, concealed bool) {
 	p.debug(fmt.Sprintf("%s:, %s", p.t.T(language.KeyPlayerKong), card))
-	p.GroupFourCount++
-	if self {
-		p.ScoreItem.AddI(score.ConcealedKong)
-	} else {
-		p.ScoreItem.AddI(score.ExposedKong)
+	p.KongCount++
+	p.recordKong(concealed)
+	if !concealed {
 		p.isClear = false
 	}
-	p.FixedCards.NewC(card, card, card, card)
-	p.PlayerCards.DelT(card, nDel)
-	p.playerPlayCard(false)
+	p.FixedCards.Add(card, card, card, card)
+	p.PlayerCards.RemoveCopies(card, concealedTilesToRemove)
+	p.emit("kong", card)
+	p.drawAndPlay(false)
 }
 
 func (p *Player) printResult() {
@@ -495,212 +494,96 @@ func (p *Player) printResult() {
 		p.info(p.t.T(language.KeyDraw))
 	case result.Lose:
 		p.info(p.t.T(language.KeyULose))
-		p.info(fmt.Sprintf("%s: %s", p.t.T(language.KeyRobotsCard), p.RobotCards.Beauty()))
+		p.info(fmt.Sprintf("%s: %s", p.t.T(language.KeyRobotsCard), p.RobotCards.Display()))
 	default:
 		panic("Invalid result value")
 	}
 }
 
-func (p *Player) JudgeIsWin(final bool) bool {
-	p.PlayerCards.Sort()
-	length := len(*p.PlayerCards)
-	var cards, originCards = make(c.Cards, length), make(c.Cards, length)
-	copy(originCards, *p.PlayerCards)
-	copy(cards, originCards)
-	fixedCardsGroupLength := (len(*p.FixedCards) - p.GroupFourCount) / 3
-	if len(cards)+len(*p.FixedCards)-p.GroupFourCount != 14 {
-		return false
+// JudgeIsWin only answers whether the current tiles form a legal winning hand.
+// It does not change tile order, score items, logs, or any other player state.
+func (p *Player) JudgeIsWin() bool {
+	return p.analyzeWin().IsWin()
+}
+
+func (p *Player) analyzeWin() hand.Analysis {
+	if p.PlayerCards == nil || p.FixedCards == nil {
+		return hand.Analysis{}
 	}
-	complete := make([]c.Cards, 0, 5)
-	alreadyCards := c.Cards{}
-	for _, card := range originCards {
-		if alreadyCards.ContainsC(card) {
-			continue
-		}
-		if cards.CountC(card) >= 2 {
-			cards.DelT(card, 2)
-			complete = append(complete, c.Cards{card, card})
-		} else {
-			continue
-		}
-		for i := 0; i < length; i++ {
-			if len(cards) == 0 {
-				break
-			}
-			headCard := cards[0]
-			if cards.CountC(headCard) >= 3 {
-				complete = append(complete, c.Cards{headCard, headCard, headCard})
-				cards.DelT(headCard, 3)
-			} else if len(headCard) == 2 { // head card is major card
-				nj := c.Card(headCard[0]) + c.Card(rune(headCard[1]+1))
-				nnj := c.Card(headCard[0]) + c.Card(rune(headCard[1]+2))
-				if cards.ContainsC(nj) && cards.ContainsC(nnj) {
-					complete = append(complete, c.Cards{headCard, nj, nnj})
-					cards.DelM(headCard, nj, nnj)
-				}
-			}
-		}
-		if len(complete)+fixedCardsGroupLength == 5 {
-			if final {
-				p.debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyCardAnalysisResult), complete))
-				if len(complete) >= 3 {
-					// check if continuous line
-					for _, k := range utils.MajorCardList {
-						isContinuousLine := true
-						for _, n := range utils.ContinuousLineJudge {
-							in := false
-							for _, group := range complete {
-								if group.ContainsC(k+n[0]) && group.ContainsC(k+n[1]) && group.ContainsC(k+n[2]) {
-									in = true
-								}
-							}
-							if !in {
-								isContinuousLine = false
-								break
-							}
-						}
-						if isContinuousLine {
-							p.ScoreItem.AddI(score.ContinuousLine)
-							break
-						}
-					}
-				}
-			}
-			return true
-		} else {
-			cards = make(c.Cards, length)
-			copy(cards, originCards)
-
-			complete = make([]c.Cards, 0, 5)
-			alreadyCards.NewC(card)
-		}
-	}
-
-	isSevenPairs := true
-	isThirteenOne := true
-
-	hasPair := false
-	alreadyCards = c.Cards{}
-	for _, i := range cards {
-		if alreadyCards.ContainsC(i) {
-			continue
-		}
-		alreadyCards.NewC(i)
-		num := cards.CountC(i)
-		if isSevenPairs && num != 2 && num != 4 {
-			isSevenPairs = false
-		}
-
-		if isThirteenOne && !utils.ThirteenOneCardList.ContainsC(i) {
-			isThirteenOne = false
-		}
-
-		if isThirteenOne && num != 1 && num != 2 {
-			isThirteenOne = false
-		} else if isThirteenOne && num == 2 {
-			if !hasPair {
-				hasPair = true
-			} else {
-				isThirteenOne = false
-			}
-		}
-		if !isThirteenOne && !isSevenPairs {
-			break
-		}
-	}
-	if isThirteenOne && hasPair && len(*p.FixedCards) == 0 {
-		if final {
-			p.debug(p.t.T(language.KeyMatchThirteenOne))
-			p.ScoreItem.AddI(score.ThirteenOne)
-		}
-		return true
-	}
-
-	if isSevenPairs && len(*p.FixedCards) == 0 {
-		if final {
-			p.debug(p.t.T(language.KeyMatchSevenPairs))
-			p.ScoreItem.AddI(score.SevenPairs)
-		}
-		return true
-	}
-	return false
+	return hand.Analyze(*p.PlayerCards, *p.FixedCards, p.KongCount)
 }
 
 func (p *Player) CheckIsWaiting() (bool, *c.Cards) {
-	res := &c.Cards{}
-	length := len(*p.PlayerCards)
-	originCards := make(c.Cards, length)
-	copy(originCards, *p.PlayerCards)
-	for _, i := range c.CardsList {
-		p.PlayerCards.NewC(i)
-		if p.JudgeIsWin(false) {
-			res.NewC(i)
+	winningTiles := &c.Cards{}
+	handSize := len(*p.PlayerCards)
+	originalHand := make(c.Cards, handSize)
+	copy(originalHand, *p.PlayerCards)
+	for _, tile := range c.CardsList {
+		if p.PlayerCards.Count(tile)+p.FixedCards.Count(tile) >= c.CopiesPerTile {
+			continue
 		}
-		*p.PlayerCards = make(c.Cards, length)
-		copy(*p.PlayerCards, originCards)
+		p.PlayerCards.Add(tile)
+		if p.JudgeIsWin() {
+			winningTiles.Add(tile)
+		}
+		*p.PlayerCards = make(c.Cards, handSize)
+		copy(*p.PlayerCards, originalHand)
 	}
-	if len(*res) != 0 {
-		res.Sort()
+	if len(*winningTiles) != 0 {
+		winningTiles.Sort()
 		p.debug(p.t.T(language.KeyMatchWaiting))
-		return true, res
+		return true, winningTiles
 	} else {
 		p.debug(p.t.T(language.KeyNotMatchWaiting))
-		return false, res
+		return false, winningTiles
 	}
 }
 
 func (p *Player) changeCondition() {
-	if p.condition == 0 {
-		p.condition = 1
+	if p.condition == rules.InitialPlayerTurnParity {
+		p.condition = rules.ClaimedPlayerTurnParity
 	} else {
-		p.condition = 1
+		p.condition = rules.ClaimedPlayerTurnParity
 	}
 }
 
-func (p *Player) getMissCard() {
-	if p.result != result.Win {
-		return
-	}
-	fullPlayCard := append(*p.PlayerCards, *p.FixedCards...)
-	cardKind := make(c.Cards, 0, 3)
-	for _, i := range fullPlayCard {
-		if len(i) == 2 && !cardKind.ContainsC(c.Card(i[0])) {
-			cardKind.NewC(c.Card(i[0]))
+func (p *Player) Main() (res result.Result, amount int, counter int) {
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			if abort, ok := recovered.(inputAbort); ok {
+				p.err = abort.err
+				p.result = result.Cancel
+				res, amount, counter = result.Cancel, 0, p.counter
+			} else {
+				panic(recovered)
+			}
 		}
-	}
-	p.debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyCardKind), cardKind))
-	count := 3 - len(cardKind)
-	if count == 1 {
-		p.ScoreItem.AddI(score.MissOneKind)
-	} else if count >= 2 {
-		p.ScoreItem.AddI(score.MissTwoKind)
-	}
-}
-
-func (p *Player) Main() (result.Result, int, int) {
+	}()
 	for {
 		if p.result != result.Default {
 			break
 		}
 
-		if len(*p.CardsPool) <= 14 {
+		if p.counter >= rules.MaxTurns {
+			panic(inputAbort{fmt.Errorf("turn limit exceeded")})
+		}
+		if len(*p.CardsPool) <= rules.DrawWallThreshold {
 			p.result = result.Equal
-			*p.ScoreItem = score.Items{}
+			*p.ScoreItems = score.Items{}
 			break
 		}
-		if p.counter%2 == p.condition {
+		if p.counter%rules.TurnCycleLength == p.condition {
 			p.counter++
-			p.playerPlayCard(true)
+			p.drawAndPlay(true)
 		} else {
 			p.counter++
-			p.robotPlayCard()
+			p.playRobotTurn()
 		}
+		p.emit("turn_end", "")
 	}
 
 	p.counter++
-	p.getMissCard()
-	p.debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyScoreItem), *p.ScoreItem))
-	amount, scoreDetail := score.GetScore(p.ScoreItem, p.counter-1)
+	amount, scoreDetail := p.settleScore()
 	p.debug(fmt.Sprintf("%s: %s", p.t.T(language.KeyLastCard), *p.CardsPool))
 	p.info(fmt.Sprintf("%s: %v", p.t.T(language.KeyThisScore), amount))
 	if amount != 0 {
@@ -708,5 +591,6 @@ func (p *Player) Main() (result.Result, int, int) {
 			p.info(view)
 		}
 	}
+	p.observe(replay.Frame{Kind: "settlement", State: p.Snapshot(), Settlement: &replay.Settlement{Result: p.result, Score: amount, Counter: p.counter, Detail: scoreDetail}})
 	return p.result, amount, p.counter
 }

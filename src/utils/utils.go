@@ -12,24 +12,24 @@ import (
 	"time"
 )
 
-var ss = rand.NewSource(time.Now().UnixNano())
-var rr = rand.New(ss)
-var currentSeed int64
+var currentSeed = time.Now().UnixNano()
+var rr *rand.Rand
+var roundSequence int64
 
 func init() {
-	// Deterministic runs for tests / debugging.
-	// If MAHJONG_SEED is set to an int64 value, it overrides the default time seed.
-	if seedStr := strings.TrimSpace(os.Getenv("MAHJONG_SEED")); seedStr != "" {
-		if seed, err := strconv.ParseInt(seedStr, 10, 64); err == nil {
+	if value := strings.TrimSpace(os.Getenv("MAHJONG_SEED")); value != "" {
+		if seed, err := strconv.ParseInt(value, 10, 64); err == nil {
 			currentSeed = seed
-			ss = rand.NewSource(seed)
-			rr = rand.New(ss)
-		} else {
-			currentSeed = time.Now().UnixNano()
 		}
-	} else {
-		currentSeed = time.Now().UnixNano()
 	}
+	rr = rand.New(rand.NewSource(currentSeed))
+}
+
+// NextRoundSeed gives each round its own reproducible random stream.
+func NextRoundSeed() int64 {
+	seed := currentSeed + roundSequence
+	roundSequence++
+	return seed
 }
 
 // GetCurrentSeed returns the seed value currently used for random number generation.
@@ -107,22 +107,23 @@ func ChangeQuickMode() {
 }
 
 func UpdateConfigFile() {
-	file, err := os.Create(ConfigFilePath)
-	if err != nil {
+	if err := writeConfigFile(); err != nil {
 		panic(err)
 	}
-	defer func(file *os.File) {
-		err := file.Close()
-		if err != nil {
-			panic(err)
-		}
-	}(file)
+}
 
+func writeConfigFile() error {
+	file, err := os.Create(ConfigFilePath)
+	if err != nil {
+		return err
+	}
 	encoder := json.NewEncoder(file)
 	encoder.SetIndent("", "  ")
 	if err := encoder.Encode(&Config); err != nil {
-		panic(err)
+		file.Close()
+		return err
 	}
+	return file.Close()
 }
 
 func LoadCurrentLog() string {

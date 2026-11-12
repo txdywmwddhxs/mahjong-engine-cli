@@ -5,7 +5,7 @@ package language
 type Key string
 
 const (
-	// Gameplay / prompts
+	// KeyLimit Gameplay / prompts
 	KeyLimit                  Key = "limit"
 	KeyRateOfRobotsCard       Key = "rate_of_robots_card"
 	KeyGetNewCard             Key = "get_new_card"
@@ -64,7 +64,7 @@ const (
 	KeyScoreWin            Key = "score_win"
 	KeyScoreLose           Key = "score_lose"
 	KeyScoreSingle         Key = "score_single"
-	KeyScoreCounter        Key = "score_counter" // expects %d argument (CountOfWinAward)
+	KeyScoreCounter        Key = "score_counter" // expects %d argument (rules.EarlyFinishTurnLimit)
 	KeyScoreOwnDraw        Key = "score_own_draw"
 	KeyScoreWaiting        Key = "score_waiting"
 	KeyScoreExposedKong    Key = "score_exposed_kong"

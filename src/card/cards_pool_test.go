@@ -13,8 +13,8 @@ func TestInitCardsPool_Counts(t *testing.T) {
 	if cp == nil {
 		t.Fatalf("expected non-nil pool")
 	}
-	if len(*cp) != CountOfKinds {
-		t.Fatalf("expected %d cards, got %d", CountOfKinds, len(*cp))
+	if len(*cp) != TotalTiles {
+		t.Fatalf("expected %d cards, got %d", TotalTiles, len(*cp))
 	}
 
 	counts := map[Card]int{}
