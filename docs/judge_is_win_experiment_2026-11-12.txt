@@ -1,0 +1,156 @@
+Pure JudgeIsWin refactor verification — 2026-11-12
+
+Current API: (*Player).JudgeIsWin() bool; the final argument was removed.
+The predicate does not sort or change tiles, score items, logs or player state.
+Hand analysis and legal-input validation now live in src/hand, depending only
+on src/card. Score patterns and missing suits live in src/score. Game scoring
+adapters live in src/player/scoring.go; score-item recording remains at the
+original game transitions to preserve the replay schema and intermediate state.
+GetScore no longer consumes the caller's score items.
+
+Verified:
+- go test ./... passed.
+- No-side-effect cases cover standard, seven pairs, thirteen orphans,
+  nonwinning and invalid hands, spare backing storage and repeated calls.
+- Eight pre-refactor replay hashes match (all frames and settlement data).
+- Existing meld/waiting/replay tests passed.
+- Repeated scoring preserves input and produces identical totals/details.
+- Full independent 2,190,387-hand differential experiment: zero false
+  positives and zero false negatives. There is now only one predicate mode.
+
+Current experiment output:
+
+=== RUN   TestJudgeIsWinExperiment
+    judge_win_experiment_test.go:267: exhaustive-single-suit: total=180387 oracle_wins=20964 false_positive=0 false_negative=0
+    judge_win_experiment_test.go:267: random-wall: total=1000000 oracle_wins=6171 false_positive=0 false_negative=0
+    judge_win_experiment_test.go:267: constructed-win: total=500000 oracle_wins=500000 false_positive=0 false_negative=0
+    judge_win_experiment_test.go:267: mutated-win: total=500000 oracle_wins=8824 false_positive=0 false_negative=0
+    judge_win_experiment_test.go:267: seven-pairs: total=5000 oracle_wins=5000 false_positive=0 false_negative=0
+    judge_win_experiment_test.go:267: thirteen-orphans: total=5000 oracle_wins=5000 false_positive=0 false_negative=0
+--- PASS: TestJudgeIsWinExperiment (4.77s)
+PASS
+ok  	github.com/txdywmwddhxs/mahjong-engine-cli/src/player	4.986s
+
+
+Earlier verification history:
+
+Fix verification — 2026-11-12
+
+Status: the input-validation and impossible-wait findings below are now fixed.
+JudgeIsWin rejects unknown tiles, more than four copies across concealed and
+fixed tiles, malformed fixed melds, incorrect tile totals and invalid kong counts.
+Fixed meld validation accepts appended kong upgrades without depending on order.
+CheckIsWaiting skips candidates whose concealed + fixed count is already four.
+The example now waits only on B2/B3/B4.
+
+Boundary diagnostics have been promoted to always-on regression assertions.
+Additional regressions cover valid pungs/sequences, appended kong upgrades,
+four kongs, and exhaustion across concealed and fixed tiles.
+
+Verification: go test ./... passed. The full 2,190,387-hand differential
+experiment was rerun in both final modes, with zero disagreements.
+Reproduce current verification:
+MAHJONG_WIN_EXPERIMENT=1 go test ./src/player -run 'TestJudgeIsWin|TestExperimentOracleKnownHands|TestCheckIsWaitingCountsFixedTiles' -v -count=1 -timeout=10m
+
+Post-fix raw output:
+
+=== RUN   TestJudgeIsWinExperiment
+    judge_win_experiment_test.go:275: exhaustive-single-suit: total=180387 oracle_wins=20964 false_positive=0 false_negative=0
+    judge_win_experiment_test.go:275: random-wall: total=1000000 oracle_wins=6171 false_positive=0 false_negative=0
+    judge_win_experiment_test.go:275: constructed-win: total=500000 oracle_wins=500000 false_positive=0 false_negative=0
+    judge_win_experiment_test.go:275: mutated-win: total=500000 oracle_wins=8824 false_positive=0 false_negative=0
+    judge_win_experiment_test.go:275: seven-pairs: total=5000 oracle_wins=5000 false_positive=0 false_negative=0
+    judge_win_experiment_test.go:275: thirteen-orphans: total=5000 oracle_wins=5000 false_positive=0 false_negative=0
+--- PASS: TestJudgeIsWinExperiment (8.94s)
+=== RUN   TestJudgeIsWinRejectsInvalidInput
+--- PASS: TestJudgeIsWinRejectsInvalidInput (0.00s)
+=== RUN   TestExperimentOracleKnownHands
+--- PASS: TestExperimentOracleKnownHands (0.00s)
+=== RUN   TestJudgeIsWinFixedMeldValidation
+=== RUN   TestJudgeIsWinFixedMeldValidation/valid_pung
+=== RUN   TestJudgeIsWinFixedMeldValidation/valid_sequence
+=== RUN   TestJudgeIsWinFixedMeldValidation/appended_kong_upgrade
+=== RUN   TestJudgeIsWinFixedMeldValidation/four_kongs
+=== RUN   TestJudgeIsWinFixedMeldValidation/five_copies_across_concealed_and_fixed
+=== RUN   TestJudgeIsWinFixedMeldValidation/cross_suit_sequence
+=== RUN   TestJudgeIsWinFixedMeldValidation/claimed_kong_without_four_identical_tiles
+=== RUN   TestJudgeIsWinFixedMeldValidation/negative_kong_count
+=== RUN   TestJudgeIsWinFixedMeldValidation/excess_kong_count
+=== RUN   TestJudgeIsWinFixedMeldValidation/incomplete_fixed_group
+--- PASS: TestJudgeIsWinFixedMeldValidation (0.00s)
+    --- PASS: TestJudgeIsWinFixedMeldValidation/valid_pung (0.00s)
+    --- PASS: TestJudgeIsWinFixedMeldValidation/valid_sequence (0.00s)
+    --- PASS: TestJudgeIsWinFixedMeldValidation/appended_kong_upgrade (0.00s)
+    --- PASS: TestJudgeIsWinFixedMeldValidation/four_kongs (0.00s)
+    --- PASS: TestJudgeIsWinFixedMeldValidation/five_copies_across_concealed_and_fixed (0.00s)
+    --- PASS: TestJudgeIsWinFixedMeldValidation/cross_suit_sequence (0.00s)
+    --- PASS: TestJudgeIsWinFixedMeldValidation/claimed_kong_without_four_identical_tiles (0.00s)
+    --- PASS: TestJudgeIsWinFixedMeldValidation/negative_kong_count (0.00s)
+    --- PASS: TestJudgeIsWinFixedMeldValidation/excess_kong_count (0.00s)
+    --- PASS: TestJudgeIsWinFixedMeldValidation/incomplete_fixed_group (0.00s)
+=== RUN   TestCheckIsWaitingCountsFixedTiles
+--- PASS: TestCheckIsWaitingCountsFixedTiles (0.00s)
+PASS
+ok  	github.com/txdywmwddhxs/mahjong-engine-cli/src/player	9.371s
+
+
+Original pre-fix report (historical findings):
+
+JudgeIsWin differential experiment — 2026-11-12
+
+Reproduce:
+MAHJONG_WIN_EXPERIMENT=1 go test ./src/player -run 'TestJudgeIsWin.*Experiment|TestExperimentOracleKnownHands' -v -count=1 -timeout=10m
+
+Seed: 20261112. Production code was not modified for this experiment.
+2,190,387 legal hands; both final=false and final=true were checked
+(4,380,774 production calls). Neither false positives nor false negatives
+were observed. Both final modes agreed for every sample.
+
+Oracle: independent 34-entry count vector, every possible pair, recursive
+triplet AND sequence search, seven pairs (quads count as two pairs), thirteen
+orphans. Six explicit known-answer fixtures also check the oracle and target.
+
+Coverage:
+- Exhaustive counts 0..4 for nine ranks of one suit, with concealed sizes
+  2/5/8/11/14. Honor pungs fill the remaining fixed meld slots.
+- 1,000,000 physical-wall random draws with 0..4 fixed honor pungs/kongs.
+- 500,000 constructed wins, including mixed suits, honors, exposed sequences,
+  pungs and kongs, rejecting any fifth physical copy.
+- 500,000 one-tile mutations of constructed wins, still physically legal.
+- 5,000 seven-pair hands and 5,000 thirteen-orphan hands.
+
+Findings outside valid-input assumptions:
+- Five identical tiles can be accepted as a pair plus a triplet.
+- Unknown tile names used as a pair and malformed fixed melds can be accepted.
+- CheckIsWaiting demonstrably creates physically impossible candidate hands:
+  B1 B1 B1 B1 B2 B2 B2 B3 B3 B3 D D D
+  reports B1/B2/B3/B4 as waits, though B1 would require a fifth copy.
+  Filtering candidates by concealed + fixed tile counts is needed if waits
+  must represent physically possible draws. This is an observed caller issue,
+  even if JudgeIsWin intentionally assumes input has already been validated.
+
+Limits: this is not exhaustive over all mixed-suit hands or fixed meld layouts.
+The final=true boolean was checked; correctness of scoring tags was not tested.
+Boundary tests report behavior rather than enforce a new input contract.
+The ordinary go test ./... suite also passed.
+
+Raw experiment output:
+
+=== RUN   TestJudgeIsWinExperiment
+    judge_win_experiment_test.go:275: exhaustive-single-suit: total=180387 oracle_wins=20964 false_positive=0 false_negative=0
+    judge_win_experiment_test.go:275: random-wall: total=1000000 oracle_wins=6171 false_positive=0 false_negative=0
+    judge_win_experiment_test.go:275: constructed-win: total=500000 oracle_wins=500000 false_positive=0 false_negative=0
+    judge_win_experiment_test.go:275: mutated-win: total=500000 oracle_wins=8824 false_positive=0 false_negative=0
+    judge_win_experiment_test.go:275: seven-pairs: total=5000 oracle_wins=5000 false_positive=0 false_negative=0
+    judge_win_experiment_test.go:275: thirteen-orphans: total=5000 oracle_wins=5000 false_positive=0 false_negative=0
+--- PASS: TestJudgeIsWinExperiment (8.19s)
+=== RUN   TestJudgeIsWinInputBoundaryExperiment
+    judge_win_experiment_test.go:301: boundary five-identical-tiles: got=true (invalid physical hand or fixed meld)
+    judge_win_experiment_test.go:301: boundary unknown-tile-pair: got=true (invalid physical hand or fixed meld)
+    judge_win_experiment_test.go:301: boundary invalid-fixed-meld: got=true (invalid physical hand or fixed meld)
+    judge_win_experiment_test.go:307: waiting boundary: hand=[B1 B1 B1 B1 B2 B2 B2 B3 B3 B3 D D D] waits=[B1 B2 B3 B4] includes_exhausted_B1=true
+--- PASS: TestJudgeIsWinInputBoundaryExperiment (0.00s)
+=== RUN   TestExperimentOracleKnownHands
+--- PASS: TestExperimentOracleKnownHands (0.00s)
+PASS
+ok  	github.com/txdywmwddhxs/mahjong-engine-cli/src/player	8.657s

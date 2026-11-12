@@ -3,74 +3,59 @@ package score
 import (
 	"fmt"
 	"math"
-
-	"github.com/txdywmwddhxs/mahjong-engine-cli/src/utils"
 )
 
-const (
-	WaitingMinScore     = 2
-	WaitingMaxScore     = 2
-	SingleMinScore      = 3
-	SingleMaxScore      = 3
-	CounterMaxScore     = 2
-	CounterMinScore     = 2
-	MissKindMinScore    = 3
-	MissKindMaxScore    = 3
-	OwnDrawTimes        = 1.0
-	KongScore           = 2
-	ThirteenOneScore    = 20
-	SevenPairsScore     = 10
-	ContinuousLineScore = 10
-)
-
-var ItemGeneratorMap = map[Item]func() int{
-	ExposedKong:    getExposedKongScore,
-	ConcealedKong:  getConcealedScore,
-	Waiting:        getWaitingScore,
-	MissOneKind:    getMissOneScore,
-	MissTwoKind:    getMissTwoScore,
-	Counter:        getCounterScore,
-	SevenPairs:     getSevenPairsScore,
-	ThirteenOne:    getThirteenOneScore,
-	ContinuousLine: getContinuousLineScore,
-	Single:         getSingleScore,
+var ItemScoreFunctions = map[Item]func() int{
+	ExposedKong:     getExposedKongScore,
+	ConcealedKong:   getConcealedKongScore,
+	Waiting:         getWaitingScore,
+	MissOneKind:     getMissingOneSuitScore,
+	MissTwoKind:     getMissingTwoSuitsScore,
+	Counter:         getCounterScore,
+	SevenPairs:      getSevenPairsScore,
+	ThirteenOrphans: getThirteenOrphansScore,
+	ContinuousLine:  getContinuousLineScore,
+	Single:          getSingleScore,
 }
 
-func GetScore(items *Items, n int) (int, map[Item]int) {
+func GetScore(items *Items, turnCount int) (int, map[Item]int) {
+	// Work on an owned copy: settlement must not consume recorded score items.
+	remainingItems := append(Items(nil), (*items)...)
+	items = &remainingItems
 	scoreDetail := make(map[Item]int)
-	isOwnDraw := false
-	if items.ContainsI(Lose) {
-		scoreDetail[Lose] = getLoseScore(n)
-		if items.ContainsI(Waiting) {
+	hasOwnDraw := false
+	if items.Contains(Lose) {
+		scoreDetail[Lose] = getLoseScore(turnCount)
+		if items.Contains(Waiting) {
 			scoreDetail[Waiting] = getWaitingScore()
 		}
 		return sum(scoreDetail), scoreDetail
 	}
 
-	if items.ContainsI(OwnDraw) {
-		items.DelI(OwnDraw)
-		isOwnDraw = true
+	if items.Contains(OwnDraw) {
+		items.Remove(OwnDraw)
+		hasOwnDraw = true
 	}
 
-	if items.ContainsI(Win) {
-		scoreDetail[Win] = getWinScore(n)
-		items.DelI(Win)
+	if items.Contains(Win) {
+		scoreDetail[Win] = getWinScore(turnCount)
+		items.Remove(Win)
 	}
 
 	for _, item := range *items {
-		generator, ok := ItemGeneratorMap[item]
+		scoreForItem, ok := ItemScoreFunctions[item]
 		if !ok {
 			panic(fmt.Sprintf("no such generator: %s", item))
 		}
-		oldScore, ok := scoreDetail[item]
+		accumulatedScore, ok := scoreDetail[item]
 		if !ok {
-			oldScore = 0
+			accumulatedScore = 0
 		}
-		scoreDetail[item] = oldScore + generator()
+		scoreDetail[item] = accumulatedScore + scoreForItem()
 	}
 
-	if isOwnDraw {
-		scoreDetail[OwnDraw] = int(float64(sum(scoreDetail))*OwnDrawTimes + 0.5)
+	if hasOwnDraw {
+		scoreDetail[OwnDraw] = int(float64(sum(scoreDetail))*OwnDrawTimes + positiveRoundingOffset)
 	}
 
 	return sum(scoreDetail), scoreDetail
@@ -83,48 +68,48 @@ func sum(scoreDetail map[Item]int) (result int) {
 	return result
 }
 
-func getWinScore(n int) int {
-	return int(math.Ceil(100/(1.0+0.3*float64(n)) - 2))
+func getWinScore(turnCount int) int {
+	return int(math.Ceil(winBaseScore/(1.0+winTurnDecay*float64(turnCount)) - winScoreOffset))
 }
 
 func getExposedKongScore() int {
 	return KongScore
 }
 
-func getConcealedScore() int {
-	return 2 * KongScore
+func getConcealedKongScore() int {
+	return concealedKongMultiplier * KongScore
 }
 
 func getWaitingScore() int {
-	return utils.RandInt(WaitingMinScore, WaitingMaxScore)
+	return WaitingMinScore
 }
 
-func getLoseScore(n int) int {
-	return -int(math.Ceil(70/(1.0-0.2*float64(n-100)) + 9))
+func getLoseScore(turnCount int) int {
+	return -int(math.Ceil(lossBasePenalty/(1.0-lossTurnDecay*float64(turnCount-lossReferenceTurn)) + lossPenaltyOffset))
 }
 
-func getMissOneScore() int {
-	return utils.RandInt(MissKindMinScore, MissKindMaxScore)
+func getMissingOneSuitScore() int {
+	return MissKindMinScore
 }
 
-func getMissTwoScore() int {
-	return getMissOneScore() * 2
+func getMissingTwoSuitsScore() int {
+	return getMissingOneSuitScore() * maxMissingSuitBonus
 }
 
 func getCounterScore() int {
-	return utils.RandInt(CounterMinScore, CounterMaxScore)
+	return CounterMinScore
 }
 
 func getSevenPairsScore() int {
 	return SevenPairsScore
 }
 
-func getThirteenOneScore() int {
-	return ThirteenOneScore
+func getThirteenOrphansScore() int {
+	return ThirteenOrphansScore
 }
 
 func getSingleScore() int {
-	return utils.RandInt(SingleMinScore, SingleMaxScore)
+	return SingleMinScore
 }
 
 func getContinuousLineScore() int {

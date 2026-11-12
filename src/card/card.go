@@ -2,112 +2,113 @@ package card
 
 import (
 	"errors"
+	"slices"
 	"sort"
 )
 
 type Card string
 type Cards []Card
 
-func (c *Cards) Init() Cards {
+func (cards *Cards) Init() Cards {
 	return *new(Cards)
 }
 
-func (c *Cards) ContainsC(card Card) bool {
-	i := c.index(card)
+func (cards *Cards) Contains(card Card) bool {
+	i := cards.index(card)
 	return i >= 0
 }
 
-func (c *Cards) index(card Card) int {
-	for i, e := range *c {
-		if card == e {
-			return i
+func (cards *Cards) index(card Card) int {
+	return slices.Index(*cards, card)
+}
+
+func (cards *Cards) Count(card Card) int {
+	count := 0
+	for _, tile := range *cards {
+		if card == tile {
+			count++
 		}
 	}
-	return -1
+	return count
 }
 
-func (c *Cards) CountC(card Card) int {
-	i := 0
-	for _, e := range *c {
-		if card == e {
-			i++
-		}
-	}
-	return i
-}
-
-func (c *Cards) DelT(card Card, t int) {
-	for i := 0; i < t; i++ {
-		c.delC(card)
+// RemoveCopies removes exactly count copies. The caller must ensure they exist.
+func (cards *Cards) RemoveCopies(card Card, count int) {
+	for i := 0; i < count; i++ {
+		cards.removeOne(card)
 	}
 }
 
-func (c *Cards) DelE(card Card) error {
-	if !c.ContainsC(card) {
+// Remove removes one copy, returning an error if the tile is absent.
+func (cards *Cards) Remove(card Card) error {
+	if !cards.Contains(card) {
 		return errors.New("error")
 	}
-	c.delC(card)
+	cards.removeOne(card)
 	return nil
 }
 
-func (c *Cards) DelM(es ...Card) {
-	for _, e := range es {
-		c.delC(e)
+// RemoveTiles removes one copy of each argument. All requested tiles must exist.
+func (cards *Cards) RemoveTiles(tiles ...Card) {
+	for _, tile := range tiles {
+		cards.removeOne(tile)
 	}
 }
 
-func (c *Cards) DelL() Card {
-	l := len(*c)
-	r := (*c)[l-1]
-	*c = (*c)[:l-1]
-	return r
+// PopLast removes and returns the last tile. The collection must be nonempty.
+func (cards *Cards) PopLast() Card {
+	lastIndex := len(*cards) - 1
+	tile := (*cards)[lastIndex]
+	*cards = (*cards)[:lastIndex]
+	return tile
 }
 
-func (c *Cards) delC(card Card) {
-	i := c.index(card)
-	*c = append((*c)[:i], (*c)[i+1:]...)
+func (cards *Cards) removeOne(card Card) {
+	i := cards.index(card)
+	*cards = append((*cards)[:i], (*cards)[i+1:]...)
 }
 
-func (c *Cards) NewC(card ...Card) {
-	*c = append(*c, card...)
+func (cards *Cards) Add(tiles ...Card) {
+	*cards = append(*cards, tiles...)
 }
 
-func (c *Cards) Sort() {
-	major := Cards{}
-	minor := Cards{}
-	for _, i := range *c {
-		if len(i) == 2 {
-			major = append(major, i)
+func (cards *Cards) Sort() {
+	suitedTiles := Cards{}
+	honorTiles := Cards{}
+	for _, tile := range *cards {
+		if len(tile) == SuitedTileCodeLength {
+			suitedTiles = append(suitedTiles, tile)
 		} else {
-			minor = append(minor, i)
+			honorTiles = append(honorTiles, tile)
 		}
 	}
-	sort.Sort(&major)
-	sort.Sort(&minor)
-	*c = append(major, minor...)
+	sort.Sort(&suitedTiles)
+	sort.Sort(&honorTiles)
+	*cards = append(suitedTiles, honorTiles...)
 }
 
-func (c *Cards) Beauty() string {
-	r := "["
-	for i, v := range *c {
-		if i == 0 {
-			r += string(v)
+// Display returns the bracketed tile list used by the CLI and readable logs.
+func (cards *Cards) Display() string {
+	display := "["
+	for index, tile := range *cards {
+		if index == 0 {
+			display += string(tile)
 		} else {
-			r = r + ", " + string(v)
+			display = display + ", " + string(tile)
 		}
 	}
-	r += "]"
-	return r
+	display += "]"
+	return display
 }
 
-func (c *Cards) Less(i, j int) bool {
-	return (*c)[i] < (*c)[j]
+func (cards *Cards) Less(i, j int) bool {
+	return (*cards)[i] < (*cards)[j]
 }
 
-func (c *Cards) Swap(i, j int) {
-	(*c)[i], (*c)[j] = (*c)[j], (*c)[i]
+func (cards *Cards) Swap(i, j int) {
+	(*cards)[i], (*cards)[j] = (*cards)[j], (*cards)[i]
 }
 
-func (c *Cards) Len() int {
-	return len(*c)
+func (cards *Cards) Len() int {
+	return len(*cards)
 }

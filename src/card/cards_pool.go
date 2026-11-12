@@ -8,8 +8,6 @@ import (
 var ss = rand.NewSource(time.Now().UnixNano())
 var rr = rand.New(ss)
 
-const CountOfKinds = 136
-
 var CardsList = Cards{
 	"W1",
 	"W2",
@@ -47,13 +45,15 @@ var CardsList = Cards{
 	"W",
 }
 
-func InitCardsPool() *Cards {
-	cp := make(Cards, 0, CountOfKinds)
-	for i := 0; i < 4; i++ {
+// InitCardsPool is retained for callers that do not own a game RNG.
+func InitCardsPool() *Cards { return InitCardsPoolWithRNG(rr) }
+
+// InitCardsPoolWithRNG uses the same per-round source as all other setup choices.
+func InitCardsPoolWithRNG(rng *rand.Rand) *Cards {
+	cp := make(Cards, 0, TotalTiles)
+	for i := 0; i < CopiesPerTile; i++ {
 		cp = append(cp, CardsList...)
 	}
-	rr.Shuffle(CountOfKinds, func(i, j int) {
-		cp[i], cp[j] = cp[j], cp[i]
-	})
+	rng.Shuffle(len(cp), func(i, j int) { cp[i], cp[j] = cp[j], cp[i] })
 	return &cp
 }
