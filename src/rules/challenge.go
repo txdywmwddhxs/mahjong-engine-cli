@@ -5,15 +5,14 @@ const (
 	EarlyFinishTurnLimit = 25
 	RobotMaxPungCount    = 2
 	RobotGoodHandPercent = 32
-	RobotBadHandPercent  = 10
+	RobotBadHandPercent  = 20
 	PercentScale         = 100
 	GoodHandLimitMin     = 22
 	GoodHandLimitMax     = 35
 	BadHandLimitMin      = 60
 	BadHandLimitMax      = 90
 
-	// Keep the historical boundary semantics: a roll is in [0,99], and the
-	// challenge generator uses inclusive <= thresholds. This is not a rebalance.
+	// A roll is in [0,99]; exclusive cumulative thresholds give exact percentages.
 	MaxDifficultyRoll = PercentScale - 1
 
 	// The last 14 wall tiles end a challenge round; this is a gameplay policy,
