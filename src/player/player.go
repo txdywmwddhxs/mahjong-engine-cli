@@ -134,12 +134,12 @@ func (p *Player) generateLimit() {
 	badHandThreshold := rules.RobotBadHandPercent
 	badHandThreshold += goodHandThreshold
 	p.debug(fmt.Sprintf("%s: %d%%, %d%%, %d%%",
-		p.t.T(language.KeyRateOfRobotsCard), goodHandThreshold, badHandThreshold-goodHandThreshold, rules.PercentScale-goodHandThreshold))
+		p.t.T(language.KeyRateOfRobotsCard), goodHandThreshold, badHandThreshold-goodHandThreshold, rules.PercentScale-badHandThreshold))
 	difficultyRoll := p.randInt(0, rules.MaxDifficultyRoll)
 	p.debug(fmt.Sprintf("%s: %d", p.t.T(language.KeyRandomNumberSeed), difficultyRoll))
-	if difficultyRoll <= goodHandThreshold {
+	if difficultyRoll < goodHandThreshold {
 		p.limit = p.randInt(rules.GoodHandLimitMin, rules.GoodHandLimitMax)
-	} else if difficultyRoll <= badHandThreshold {
+	} else if difficultyRoll < badHandThreshold {
 		p.limit = p.randInt(rules.GoodHandLimitMax, rules.BadHandLimitMin)
 	} else {
 		p.limit = p.randInt(rules.BadHandLimitMin, rules.BadHandLimitMax)
@@ -543,7 +543,7 @@ func (p *Player) changeCondition() {
 	if p.condition == rules.InitialPlayerTurnParity {
 		p.condition = rules.ClaimedPlayerTurnParity
 	} else {
-		p.condition = rules.ClaimedPlayerTurnParity
+		p.condition = rules.InitialPlayerTurnParity
 	}
 }
 

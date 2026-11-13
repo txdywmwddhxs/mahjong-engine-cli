@@ -173,7 +173,9 @@ Requires Git, Bash, Go 1.24 or newer, and a C compiler for Go's race detector. T
 command runs formatting and vet checks, uncached tests with the race detector,
 CLI integration and golden replay tests, the 2,190,387-hand differential
 experiment, 256 complete seeded games (including regeneration and replay), and
-actual release/test package checks. It also verifies version/changelog
+actual release/test package checks. A dedicated turn-order gate covers consecutive
+pung/pung, pung/kong, kong/pung and kong/kong claims through the game loop and
+replay verification; a missing gate test or any failure blocks release. It also verifies version/changelog
 consistency and requires at least 50% statement coverage; `COVER_MIN` cannot
 lower this threshold in release mode.
 

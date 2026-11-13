@@ -18,7 +18,7 @@ Modes:
 
   release Release gate: full checks + 2,190,387-hand differential experiment,
           256 seeded game replays, native release/test package smoke tests,
-          and version/changelog consistency. Coverage must be >= 50%.
+          claim turn-order scenarios, and version/changelog consistency. Coverage must be >= 50%.
 
 Notes:
   - Requires Git, Go and a C compiler for the race detector; package checks use Bash.
@@ -46,6 +46,17 @@ if [[ -n "$UNFORMATTED" ]]; then
   echo "$UNFORMATTED" >&2
   echo "Run: gofmt -w src" >&2
   exit 1
+fi
+
+if [[ "$MODE" == "release" ]]; then
+  echo "[check] claim turn-order gate (pung/pung, pung/kong, kong/pung, kong/kong)"
+  CLAIM_TEST=TestReleaseClaimTurnOrder
+  AVAILABLE_TESTS="$(go test ./src/player -list "^${CLAIM_TEST}$")"
+  if ! echo "$AVAILABLE_TESTS" | grep -qx "$CLAIM_TEST"; then
+    echo "ERROR: required claim turn-order test is missing" >&2
+    exit 1
+  fi
+  go test -count=1 -race -timeout=1m ./src/player -run "^${CLAIM_TEST}$" -v
 fi
 
 echo "[check] go vet"
